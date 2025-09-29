@@ -15,7 +15,6 @@ from langchain.schema import HumanMessage
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 import shutil
-from tkinter import simpledialog
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.chat_models import ChatOpenAI
@@ -24,20 +23,13 @@ load_dotenv()
 
 st.title("いいね付きメッセージ自動生成アプリ")
 st.divider()
-input_message = st.text_input(label="女性のプロフィールＵＲＬを入力してください。")
+target_url = st.text_input(label="女性のプロフィールＵＲＬを入力してください。")
 
 if st.button("実行"):
     st.divider()
-    if not input_message:
+    if not target_url:
         st.error("ＵＲＬを入力してから「実行」ボタンを押してください。")
         st.stop()
-
-    target_url = simpledialog.askstring("入力", "女性のプロフィールURLを入力してください")
-
-    # 入力がキャンセルされた場合の処理
-    if target_url is None:
-        print("キャンセルされました。処理を中断します。")
-        exit()
 
     # セッション開始
     session = requests.Session()
@@ -220,5 +212,6 @@ if st.button("実行"):
     # """
 
     ai_msg = rag_chain.invoke({"input": query, "chat_history": chat_history})
-    print(f"\n\n==================＜メッセージ＞==================\n{ai_msg['answer']}\n\n")
+    # print(f"\n\n==================＜メッセージ＞==================\n{ai_msg['answer']}\n\n")
     chat_history.extend([HumanMessage(content=query), ai_msg["answer"]])
+    st.write(f"生成メッセージ: **{ai_msg['answer']}**")
