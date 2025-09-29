@@ -15,7 +15,6 @@ from langchain.schema import HumanMessage
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 import shutil
-import tkinter as tk
 from tkinter import simpledialog
 import streamlit as st
 from dotenv import load_dotenv
@@ -32,9 +31,6 @@ if st.button("実行"):
     if not input_message:
         st.error("ＵＲＬを入力してから「実行」ボタンを押してください。")
         st.stop()
-
-    root = tk.Tk()
-    root.withdraw()  # メインウィンドウを非表示
 
     target_url = simpledialog.askstring("入力", "女性のプロフィールURLを入力してください")
 
