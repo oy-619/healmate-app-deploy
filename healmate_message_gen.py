@@ -220,4 +220,4 @@ if st.button("実行"):
     ai_msg = rag_chain.invoke({"input": query, "chat_history": chat_history})
     # print(f"\n\n==================＜メッセージ＞==================\n{ai_msg['answer']}\n\n")
     chat_history.extend([HumanMessage(content=query), ai_msg["answer"]])
-    st.write(f"生成メッセージ: **{ai_msg['answer']}**")
+    st.write(f"{ai_msg['answer']}")
