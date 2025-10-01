@@ -51,26 +51,8 @@ def parse_datetime(date_str, time_str):
 if st.button("実行"):
     st.divider()
 
-    # セッション開始
-    # session = requests.Session()
-
-    # ログインページにアクセスしてCSRFトークンなどを取得
-    # login_url = "https://healmate.jp/login"
-    # res = session.get(login_url)
-    # soup = BeautifulSoup(res.text, "html.parser")
-    # token = soup.find("input", {"name": "token"}).get("value")  # サイトによって異なる
-
-    # ログイン情報をPOST
-    # payload = {
-    #     "id": "youcan9160@gmail.com",
-    #     "pass": "oy19740619",
-    #     "token": token
-    # }
-    # session.post(login_url, data=payload)
-
     # ログイン後のターゲットページにアクセス(男性メッセージ)
     documents = []
-    # res = session.get("https://my.healmate.jp/talk?code=o5wphl0zfx6rt41#bottom")
 
     # Chromeをヘッドレス（画面非表示）で起動
     options = webdriver.ChromeOptions()
