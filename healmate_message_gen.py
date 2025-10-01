@@ -84,11 +84,12 @@ if st.button("実行"):
     # データベースの作成
     # index = GPTVectorStoreIndex.from_documents(documents)
     # index.storage_context.persist()
-    save_dir = "/tmp/.db"
-    if os.path.isdir(save_dir):
-        shutil.rmtree(save_dir)
+    # save_dir = "/tmp/.db"
+    # if os.path.isdir(save_dir):
+    #     shutil.rmtree(save_dir)
 
-    db = Chroma.from_documents(docs, embedding=embeddings, persist_directory=save_dir)
+    # db = Chroma.from_documents(docs, embedding=embeddings, persist_directory=save_dir)
+    db = Chroma.from_documents(docs, embedding=embeddings)
     db.persist()
 
     retriever = db.as_retriever()
