@@ -33,10 +33,6 @@ from datetime import datetime
 
 load_dotenv()
 
-st.title("返信メッセージ自動生成アプリ")
-st.divider()
-today_txt = st.text_area(label="今日の出来事を入力してください。")
-
 # 日付・時間でソートする関数
 def parse_datetime(date_str, time_str):
     # 例: date_str = "2025/9/24(水)", time_str = "06:15既読"
@@ -48,99 +44,133 @@ def parse_datetime(date_str, time_str):
     except Exception:
         return datetime.min  # パース失敗時は最小値
 
-if st.button("実行"):
+# ログイン後のターゲットページにアクセス(男性メッセージ)
+documents = []
+
+# Chromeをヘッドレス（画面非表示）で起動
+options = webdriver.ChromeOptions()
+options.add_argument("--headless")
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+# ログインページにアクセス
+driver.get("https://healmate.jp/login")
+#time.sleep(2)  # ページ読み込み待ち
+
+# ログイン処理（例：フォーム入力と送信）
+driver.find_element("name", "id").send_keys("youcan9160@gmail.com")
+driver.find_element("name", "pass").send_keys("oy19740619")
+token = driver.find_element("name", "token").get_attribute("value")
+driver.find_element("tag name", "form").submit()
+#time.sleep(2)
+
+# ターゲットページにアクセス
+driver.get("https://my.healmate.jp/talk?code=o5wphl0zfx6rt41#bottom")
+#time.sleep(2)
+# ページ最下部までスクロール
+driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "container")))
+# ページ全体のHTMLを取得
+html = driver.page_source 
+# ブラウザを閉じる
+driver.quit()  
+# ここでHTMLを確認
+#print(html)
+# HTMLをパースして必要な情報を抽出
+soup = BeautifulSoup(html, "html.parser")
+name_elements = soup.select_one("div.hover")
+nickname = name_elements.get_text(strip=True)
+
+container = soup.select_one("div#container")
+documents = []
+self_docs = []
+partner_docs = []
+current_date = None
+
+# 会話履歴の各要素をループ処理
+for child in container.children:
+    # 日付の要素とメッセージの要素を判別して処理
+    if child.name == "p" and "talkDate" in child.get("class", []):
+        # 日付を記憶
+        current_date = child.get_text(strip=True)
+    # メッセージの要素
+    elif child.name == "div" and current_date:
+        # 時間とメッセージを抽出
+        time_tag = child.select_one("div.talkTime")
+        msg_tag_self = child.select_one("div.talkBalloonColor1")
+        msg_tag_partner = child.select_one("div.talkBalloonColor2")
+        time = time_tag.get_text(strip=True) if time_tag else ""
+        if msg_tag_self:
+            msg = msg_tag_self.get_text(strip=True)
+            self_docs.append((current_date, time, "【男性】", msg))
+        elif msg_tag_partner:
+            msg = msg_tag_partner.get_text(strip=True)
+            partner_docs.append((current_date, time, f"【{nickname}】", msg))
+
+# 全てのメッセージをまとめる
+documents = self_docs + partner_docs
+
+# 日付と時間でソート
+self_docs_sorted = sorted(
+    self_docs,
+    key=lambda x: parse_datetime(x[0], x[1]),
+    reverse=True  # 最新順
+)
+print(self_docs_sorted[0-1])
+
+# 日付と時間でソート
+partner_docs_sorted = sorted(
+    partner_docs,
+    key=lambda x: parse_datetime(x[0], x[1]),
+    reverse=True  # 最新順
+)
+print(partner_docs_sorted[0])
+
+# 日付と時間でソート
+documents_sorted = sorted(
+    documents,
+    key=lambda x: parse_datetime(x[0], x[1]),
+    reverse=True  # 最新順
+)
+
+# for date, time, role, msg in documents_sorted:
+#     print(f"{date} {time} [{role}] {msg}")
+
+# msgを適度に改行して見やすくする（句点・改行で分割して再結合する例）
+def format_message(msg):
+    # 句点（。）や改行で分割し、各文を1行ずつ表示
+    import re
+    sentences = re.split(r"(。|\n)", msg)
+    formatted = ""
+    for s in sentences:
+        if s and s != "\n":
+            formatted += s.strip()
+            if s == "。":
+                formatted += "\n"
+    return formatted
+
+
+st.title(f"{nickname}さんへの返信メッセージ自動生成アプリ")
+st.divider()
+st.subheader(f"最新メッセージ")
+
+# partner_docs_sorted[0]は (date, time, role, msg)
+date, time, role, msg = partner_docs_sorted[0]
+msg_formatted = format_message(msg)
+
+# Streamlitで見やすく表示する例
+st.markdown(f"""
+**日付**: {date}  
+**時間**: {time}  
+**送信者**: {role}  
+**メッセージ**:  
+{msg_formatted}
+""")
+st.divider()
+
+today_txt = st.text_area(label=f"今日の出来事や{nickname}さんからの最新メッセージに対する思いを入力してください。")
+
+if st.button("メッセージ生成"):
     st.divider()
-
-    # ログイン後のターゲットページにアクセス(男性メッセージ)
-    documents = []
-
-    # Chromeをヘッドレス（画面非表示）で起動
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-    # ログインページにアクセス
-    driver.get("https://healmate.jp/login")
-    #time.sleep(2)  # ページ読み込み待ち
-
-    # ログイン処理（例：フォーム入力と送信）
-    driver.find_element("name", "id").send_keys("youcan9160@gmail.com")
-    driver.find_element("name", "pass").send_keys("oy19740619")
-    token = driver.find_element("name", "token").get_attribute("value")
-    driver.find_element("tag name", "form").submit()
-    #time.sleep(2)
-
-    # ターゲットページにアクセス
-    driver.get("https://my.healmate.jp/talk?code=o5wphl0zfx6rt41#bottom")
-    #time.sleep(2)
-    # ページ最下部までスクロール
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "container")))
-    # ページ全体のHTMLを取得
-    html = driver.page_source 
-    # ブラウザを閉じる
-    driver.quit()  
-    # ここでHTMLを確認
-    #print(html)
-    # HTMLをパースして必要な情報を抽出
-    soup = BeautifulSoup(html, "html.parser")
-    name_elements = soup.select_one("div.hover")
-    nickname = name_elements.get_text(strip=True)
-    
-    container = soup.select_one("div#container")
-    documents = []
-    self_docs = []
-    partner_docs = []
-    current_date = None
-
-    # 会話履歴の各要素をループ処理
-    for child in container.children:
-        # 日付の要素とメッセージの要素を判別して処理
-        if child.name == "p" and "talkDate" in child.get("class", []):
-            # 日付を記憶
-            current_date = child.get_text(strip=True)
-        # メッセージの要素
-        elif child.name == "div" and current_date:
-            # 時間とメッセージを抽出
-            time_tag = child.select_one("div.talkTime")
-            msg_tag_self = child.select_one("div.talkBalloonColor1")
-            msg_tag_partner = child.select_one("div.talkBalloonColor2")
-            time = time_tag.get_text(strip=True) if time_tag else ""
-            if msg_tag_self:
-                msg = msg_tag_self.get_text(strip=True)
-                self_docs.append((current_date, time, "【男性】", msg))
-            elif msg_tag_partner:
-                msg = msg_tag_partner.get_text(strip=True)
-                partner_docs.append((current_date, time, f"【{nickname}】", msg))
-
-    # 全てのメッセージをまとめる
-    documents = self_docs + partner_docs
-
-    # 日付と時間でソート
-    self_docs_sorted = sorted(
-        self_docs,
-        key=lambda x: parse_datetime(x[0], x[1]),
-        reverse=True  # 最新順
-    )
-    print(self_docs_sorted[0-1])
-
-    # 日付と時間でソート
-    partner_docs_sorted = sorted(
-        partner_docs,
-        key=lambda x: parse_datetime(x[0], x[1]),
-        reverse=True  # 最新順
-    )
-    print(partner_docs_sorted[0])
-
-    # 日付と時間でソート
-    documents_sorted = sorted(
-        documents,
-        key=lambda x: parse_datetime(x[0], x[1]),
-        reverse=True  # 最新順
-    )
-
-    # for date, time, role, msg in documents_sorted:
-    #     print(f"{date} {time} [{role}] {msg}")
 
     docs = [
         Document(
@@ -246,16 +276,15 @@ if st.button("実行"):
     ## {nickname}の最新メッセージ内容をもとに今日の出来事を含めて魅力的な返信メッセージを作成してください。
 
     # 条件
+    ## 現在の時刻に合わせた挨拶を文頭にいれること。
     ## 男性から{nickname}に対する返信メッセージであること。
-    ## {nickname}の最新メッセージ内容に対する返信であること。
+    ## {nickname}の最新メッセージを細かくメッセージに反映すること。
     ## 返信メッセージは、{nickname}のメッセージ内容にしっかりと応答していること。
     ## ニックネーム（{nickname}）を反映すること。
-    ## 今日の出来事を必ず反映すること。
-    ## 男性との会話の流れを時系列に把握した上で、 {nickname}の最新メッセージ内容を細かく反映すること。
-    ## 現在の時刻に合わせた挨拶を文頭にいれること。
+    ## 男性側の思いを必ず反映すること。
     ## 生成するメッセージには「とのこと」の言葉は使用しないこと。
     ## スマートで紳士的かつ、自然な文体にすること（軽すぎず、堅すぎず）
-    ## 丁寧な言葉遣いをベースに、知的なユーモアや思いやりを感じさせる要素を含めること。
+    ## 丁寧な言葉遣いをベースに、知的かつユーモアで思いやりのある冗談の要素を含めること。
     ## 長文になりすぎず、5～10文程度で簡潔にまとめること。
     ## 絵文字を入れること。
     ## 禁止事項：下品な表現、即会い目的と感じる文言。
@@ -268,10 +297,7 @@ if st.button("実行"):
     # {nickname}の最新メッセージ
     {partner_docs_sorted[0]}
 
-    # 男性の最新メッセージ
-    {self_docs_sorted[0]}
-
-    # 今日の出来事
+    # 男性側の思い
     {today_txt}
     """
 
