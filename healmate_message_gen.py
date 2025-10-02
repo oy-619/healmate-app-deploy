@@ -56,8 +56,22 @@ if st.button("実行"):
     soup = BeautifulSoup(res.text, "html.parser")
     target_elements = soup.select("p.detailNickname")
     target_nickname = [el.get_text(strip=True) for el in target_elements]
-    target_elements = soup.select("p.detailText")
-    target_introduction = [el.get_text(strip=True) for el in target_elements]
+
+    # 「自己紹介」タイトルの次に出現する「p.detailText」を取得
+    target_introduction = ""
+    titles = soup.select("div.detailTitle")
+    for title in titles:
+        if title.get_text(strip=True) == "自己紹介":
+            # 次の兄弟要素を探索
+            next_elem = title.find_next_sibling()
+            while next_elem:
+                if next_elem.name == "p" and "detailText" in next_elem.get("class", []):
+                    target_introduction = next_elem.get_text(strip=True)
+                    print(f"自己紹介: {target_introduction}")
+                    break
+                next_elem = next_elem.find_next_sibling()
+            break  # 最初の「自己紹介」だけでOK
+
     target_elements = soup.select("p.detailNickname, p.detailText, div.detailFlaxBetween, div.detailNickname, div.detailTitle, div.detailText")
     target_text = "\n".join([el.get_text(strip=True) for el in target_elements])
     #print(text)
@@ -208,6 +222,7 @@ if st.button("実行"):
     ## 長文になりすぎず、5～10文程度で簡潔にまとめること。
     ## 自然で控えめな言い回しにすること。
     ## 絵文字を入れること。
+    ## 深堀したい内容をメッセージに細かく反映すること。
     ## 禁止事項：下品な表現、即会い目的と感じる文言。
 
     # 出力指示
