@@ -56,6 +56,8 @@ if st.button("実行"):
     soup = BeautifulSoup(res.text, "html.parser")
     target_elements = soup.select("p.detailNickname")
     target_nickname = [el.get_text(strip=True) for el in target_elements]
+    target_elements = soup.select("p.detailText")
+    target_introduction = [el.get_text(strip=True) for el in target_elements]
     target_elements = soup.select("p.detailNickname, p.detailText, div.detailFlaxBetween, div.detailNickname, div.detailTitle, div.detailText")
     target_text = "\n".join([el.get_text(strip=True) for el in target_elements])
     #print(text)
@@ -214,7 +216,9 @@ if st.button("実行"):
     ## パターンを**3種類（知的で落ち着き／甘めでドキッとする／短文クール）**で提示
 
     # 深堀したい内容
+    ## {target_introduction}
     ## {interest_txt}
+    
     """
 
     ai_msg = rag_chain.invoke({"input": query, "chat_history": chat_history})
