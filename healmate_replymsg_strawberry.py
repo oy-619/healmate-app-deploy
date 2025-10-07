@@ -222,11 +222,10 @@ def get_new_messages():
         for i, (date, msg_time, role, msg) in enumerate(documents_sorted)
     ]
 
-    return self_docs_sorted[0], partner_docs_sorted[0], docs, partner_nickname
+    return self_docs_sorted[0], partner_docs_sorted[0], documents_sorted, docs, partner_nickname
 
 # msgを適度に改行して見やすくする（句点・改行で分割して再結合する例）
 def format_message(msg):
-    # 句点（。）や改行で分割し、各文を1行ずつ表示
     import re
     sentences = re.split(r"(。|\n)", msg)
     formatted = ""
@@ -243,7 +242,7 @@ def main():
     # ------------------------------------------------------
 
     # パートナーと自分自身の最新メッセージ1件とパートナーのニックネームを情報を取得
-    self_docs, partner_docs, docs, partner_nickname = get_new_messages()
+    self_docs, partner_docs, documents_sorted, docs, partner_nickname = get_new_messages()
 
     # ------------------------------------------------------
     # Streamlitアプリ
@@ -346,39 +345,40 @@ def main():
         chat_history = []
         
         query = f"""
-        #役割
+        # 役割
         あなたは恋愛心理カウンセラーです。女性からのメッセージに対して、魅力的な返信メッセージを作成することが得意です。
 
-        #文脈
-        ## 男性と{partner_nickname}は、1カ月前にマッチングしていて、メッセージをやり取りしている。
-        ## 男性は{partner_nickname}に好意を持っていて、真剣に交際を考えている。
+        # 文脈
+        - 男性と{partner_nickname}は、1カ月前にマッチングしていて、メッセージをやり取りしている。
+        - 男性は{partner_nickname}に好意を持っていて、真剣に交際を考えている。
+        - 男性の年齢: 51歳
+        - 女性の年齢: {partner_nickname}
+        - 女性の趣味や性格: （プロフィール情報を追加）
 
         # 命令
-        ## {partner_nickname}の最新メッセージ内容をもとに男性側の思いを含めて、{partner_nickname}がキュンとする魅力的な返信メッセージを作成してください。
-
-        # 条件
-        ## 現在の時刻に合わせた挨拶を文頭にいれること。
-        ## 男性から{partner_nickname}に対する返信メッセージであること。
-        ## {partner_nickname}の最新メッセージを細かくメッセージに反映すること。
-        ## 返信メッセージは、{partner_nickname}のメッセージ内容にしっかりと応答していること。
-        ## ニックネーム（{partner_nickname}）を反映すること。
-        ## 男性の最新メッセージと{partner_nickname}の最新メッセージを時系列で文脈を把握して、自然な会話となること。
-        ## 男性側の思いを必ず反映すること。
-        ## 生成するメッセージには「とのこと」の言葉は使用しないこと。
-        ## スマートでフレンドリーかつ、自然な文体にすること（軽すぎず、堅すぎず）
-        ## 優しい言葉遣いをベースに、知的、ユーモア、冗談をバランスよく含めること。
-        ## 長文になりすぎず、10～20文程度で簡潔にまとめること。
-        ## 文の内容にあった絵文字を入れること。
-        ## 自身のことを「自分」または「俺」という一人称で表現すること。
-        ## 語尾に力を入れすぎず、柔らかく表現すること。
-        ## 語尾に適度な抑揚をつけること。
-        ## ゆっくりと語尾を伸ばして、親しみやすさや柔らかい印象を与えること。
-        ## 禁止事項：下品な表現、即会い目的と感じる文言。
+        - {partner_nickname}の最新メッセージ内容をもとに男性側の思いを含めて、{partner_nickname}がキュンとする魅力的な返信メッセージを作成してください。
+        - 現在の時刻に合わせた挨拶を文頭にいれること。
+        - 男性から{partner_nickname}に対する返信メッセージであること。
+        - {partner_nickname}の最新メッセージを細かくメッセージに反映すること。
+        - 返信メッセージは、{partner_nickname}のメッセージ内容にしっかりと応答していること。
+        - ニックネーム（{partner_nickname}）を反映すること。
+        - 男性の最新メッセージと{partner_nickname}の最新メッセージを時系列で文脈を把握して、自然な会話となること。
+        - 男性側の思いを必ず反映すること。
+        - 生成するメッセージには「とのこと」の言葉は使用しないこと。
+        - スマートでフレンドリーかつ、自然な文体にすること（軽すぎず、堅すぎず）
+        - 優しい言葉遣いをベースに、知的、ユーモア、冗談をバランスよく含めること。
+        - 長文になりすぎず、10～20文程度で簡潔にまとめること。
+        - 文の内容にあった絵文字を入れること。
+        - 自身のことを「自分」または「俺」という一人称で表現すること。
+        - 語尾に力を入れすぎず、柔らかく表現すること。
+        - 語尾に適度な抑揚をつけること。
+        - ゆっくりと語尾を伸ばして、親しみやすさや柔らかい印象を与えること。
+        - 禁止事項：下品な表現、即会い目的と感じる文言。
 
         # 出力指示
-        ## テキストのみ-
-        ## 句読点で適度に改行し、読みやすくすること。
-        ## パターンを**3種類（知的で落ち着き／甘めでドキッとする／短文クール）**で提示
+        - テキストのみ
+        - 句読点で適度に改行し、読みやすくすること。
+        - パターンを**3種類（知的で落ち着き／甘めでドキッとする／短文クール）**で提示
 
         # {partner_nickname}の最新メッセージ
         {partner_docs}
@@ -389,6 +389,14 @@ def main():
         # 男性側の思い
         {today_txt}
         """
+
+        # 直近5件のメッセージ履歴をプロンプトに含める
+        # recent_history = "\n".join([
+        #     f"{date} {msg_time} [{role}] {msg}"
+        #     for date, msg_time, role, msg in documents_sorted[:5]
+        # ])
+        # query += f"\n# 直近の会話履歴\n{recent_history}\n"
+        
         ai_msg = rag_chain.invoke({"input": query, "chat_history": chat_history})
         # print(f"\n\n==================＜メッセージ＞==================\n{ai_msg['answer']}\n\n")
         chat_history.extend([HumanMessage(content=query), ai_msg["answer"]])
@@ -406,10 +414,12 @@ def main():
             st.session_state["initialized"] = True
             # DBが存在しない場合の処理
             if not is_db():
-                # 全メッセージを取得してChromaに格納
+                # DBがなければ初回のみ作成
                 documents = get_all_messages()
                 db = Chroma.from_documents(documents, embedding=embeddings, persist_directory=save_dir)
                 db.persist()
+            else:
+                db = Chroma(persist_directory=save_dir, embedding_function=embeddings)
 
         db = Chroma(persist_directory=save_dir, embedding_function=embeddings)
         # 新しい文書を足すときは add_documents を使う
@@ -425,21 +435,17 @@ def main():
         # DBからRetrieverを作成
         retriever = db.as_retriever()
 
-        query = """
-        ## 役割
-        あなたは優秀な心理カウンセラーです。  
-        以下のChromaDBに蓄積された女性とのメッセージ履歴をもとに、女性の人間性や男性への好意、性格、価値観、コミュニケーションの特徴などを総合的に分析してください。
-
-        ## 条件
-        - 会話内容から読み取れる性格や価値観、行動パターン、感情表現、対人関係の特徴を具体的に挙げてください。
-        - 文章や言葉遣いから推測できる「思いやり」「誠実さ」「ユーモア」「知性」「積極性」「控えめさ」などの要素を分析してください。
-        - 相手男性への好意や関心の度合い、どのような場面でどんな感情や反応が現れているかも指摘してください。
-        - もし判断が難しい場合は、その旨も率直に記載してください。
-
-        ## 出力指示
-        - 箇条書きや段落で分かりやすくまとめてください。
-        - 分析の根拠となるメッセージ内容や表現も引用してください。
-        - できるだけ客観的かつ具体的に記述してください。
+        query = f"""
+        あなたは優秀な心理カウンセラーです。
+        以下のメッセージ履歴から、女性の人間性・好意・性格・価値観・コミュニケーションの特徴を分析してください。
+        - 好きな食べ物や趣味、休日の過ごし方、仕事や学業に対する姿勢などを具体的に挙げる
+        - 性格や価値観、行動パターン、感情表現、対人関係の特徴を具体的に挙げる
+        - 思いやり、誠実さ、ユーモア、知性、積極性、控えめさなどの要素を分析
+        - 男性への好意や関心の度合い、感情や反応の場面を指摘
+        - 判断が難しい場合はその旨も記載
+        - 根拠となるメッセージ内容や表現も引用
+        - 客観的かつ具体的に記述
+        - やりたいことリストを具体的に抽出
         """
         llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.5)
         chain = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
