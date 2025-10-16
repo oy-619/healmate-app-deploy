@@ -25,9 +25,11 @@ load_dotenv()
 # 変数定義
 # ------------------------------------------------------
 save_dir = r"C:\work\ws_python\GenerationAiCamp\HM\.db"
-
+partner_nickname = None
 
 # OpenAI APIキーの確認と設定
+
+
 def check_openai_api_key():
     """OpenAI APIキーの有効性を確認する"""
     api_key = os.getenv("OPENAI_API_KEY")
@@ -139,13 +141,12 @@ def get_all_messages():
 
     driver.quit()
 
-    # 最初のHTMLからパートナーのニックネームを取得
-    partner_nickname = None
-    if html_list:
-        soup = BeautifulSoup(html_list[0], "html.parser")
-        name_elements = soup.select_one("div.hover")
-        if name_elements:
-            partner_nickname = name_elements.get_text(strip=True)
+    # 最初のHTMLからパートナーのニックネームを取得（この関数では使用しない）
+    # if html_list:
+    #     soup = BeautifulSoup(html_list[0], "html.parser")
+    #     name_elements = soup.select_one("div.hover")
+    #     if name_elements:
+    #         partner_nickname = name_elements.get_text(strip=True)
 
     # HTMLリストから🍓さんのメッセージのみを抽出
     partner_messages = []
@@ -230,7 +231,6 @@ def get_full_conversation_history():
     driver.quit()
 
     # パートナーのニックネームを取得
-    partner_nickname = None
     if html_list:
         soup = BeautifulSoup(html_list[0], "html.parser")
         name_elements = soup.select_one("div.hover")
@@ -357,23 +357,23 @@ def get_recent_conversation_context():
 
     # 直近5件の会話履歴を取得（文脈のため）
     recent_context = all_recent_messages_sorted[:5]
-    
+
     # 最新のパートナーメッセージを特定
     latest_partner_msg = None
     latest_self_msg = None
-    
+
     for msg in all_recent_messages_sorted:
         if msg[2] == partner_nickname and latest_partner_msg is None:
             latest_partner_msg = msg
         if msg[2] == "男性" and latest_self_msg is None:
             latest_self_msg = msg
-        
+
         # 両方見つかったらループを抜ける
         if latest_partner_msg and latest_self_msg:
             break
 
     print(f"🍓{partner_nickname}さんの最新メッセージ:", latest_partner_msg)
-    print(f"男性の最新メッセージ:", latest_self_msg)
+    print(f"男性の最新メッセージ:, {latest_self_msg}")
 
     return {
         'partner_nickname': partner_nickname,
@@ -548,16 +548,16 @@ def show_manual_deletion_guide():
         st.markdown(
             """
         **以下の手順を順番に実行してください:**
-        
+
         ### 🛑 1. アプリケーションを完全停止
         - このブラウザタブを**完全に閉じる**
         - ターミナルで `Ctrl + C` を押してアプリを停止
-        
+
         ### 🔍 2. プロセス確認・終了
         - タスクマネージャーを開く（`Ctrl + Shift + Esc`）
         - 「詳細」タブで **python.exe** プロセスをすべて終了
         - **streamlit** 関連プロセスも終了
-        
+
         ### 🗂️ 3. データベースフォルダを手動削除
         """
         )
@@ -570,12 +570,12 @@ def show_manual_deletion_guide():
         - エクスプローラーで上記パスを開く
         - `.db` フォルダーを右クリック → 削除
         - 「別のプロセスが使用中」エラーが出る場合は**PCを再起動**
-        
+
         ### 🚀 4. アプリケーション再起動
         ```bash
         streamlit run healmate_replymsg_strawberry.py
         ```
-        
+
         ### ⚠️ それでも削除できない場合
         - **PC を再起動** してから手順3を実行
         - 管理者権限でコマンドプロンプトを開き:
@@ -651,9 +651,9 @@ def safe_init_chromadb(force_recreate=False):
                 st.markdown(
                     """
                 **以下の手順を順番に実行してください:**
-                
+
                 1. **サイドバーの「データベースをリセット」ボタンを試す**
-                
+
                 2. **それでも解決しない場合:**
                    - ブラウザのこのタブを閉じる
                    - ターミナルで `Ctrl+C` を押してアプリを完全停止
@@ -664,7 +664,7 @@ def safe_init_chromadb(force_recreate=False):
                 st.markdown(
                     """
                    - `streamlit run healmate_replymsg_strawberry.py` で再起動
-                
+
                 3. **Windowsでファイルが削除できない場合:**
                    - タスクマネージャーでPythonプロセスをすべて終了
                    - PCを再起動してから手順2を実行
@@ -677,7 +677,7 @@ def main():
     # ------------------------------------------------------
     # セッション状態の初期化
     # ------------------------------------------------------
-    
+
     # 結果を保持するセッション状態を初期化
     if 'message_result' not in st.session_state:
         st.session_state.message_result = None
@@ -687,7 +687,7 @@ def main():
         st.session_state.wishlist_result = None
     if 'wishlist_line_text' not in st.session_state:
         st.session_state.wishlist_line_text = None
-        
+
     # ------------------------------------------------------
     # メッセージ情報取得処理
     # ------------------------------------------------------
@@ -778,9 +778,9 @@ def main():
     # Streamlitで見やすく表示
     st.markdown(
         f"""
-    **日付**: {date}  
-    **時間**: {msg_time}  
-    **送信者**: {role}  
+    **日付**: {date}
+    **時間**: {msg_time}
+    **送信者**: {role}
     **メッセージ**:
     {msg_formatted}
     """
@@ -810,11 +810,11 @@ def main():
             with st.spinner("💬 メッセージを生成中..."):
                 # 全会話履歴を取得（メッセージ生成には全履歴が必要）
                 all_conversation_docs = get_full_conversation_history()
-                
+
                 if not all_conversation_docs:
                     st.error("会話履歴が見つかりませんでした。")
                     st.stop()
-                
+
                 db = Chroma.from_documents(all_conversation_docs, embedding=embeddings)
                 db.persist()
                 retriever = db.as_retriever()
@@ -899,11 +899,12 @@ def main():
                 if recent_context:
                     recent_conversation = "# 直近の会話の流れ（時系列順）\n"
                     # 古い順に並び替えて会話の流れを表示
-                    sorted_context = sorted(recent_context, 
-                                          key=lambda x: parse_datetime(x[0], x[1]))
+                    sorted_context = sorted(
+                        recent_context, key=lambda x: parse_datetime(x[0], x[1])
+                    )
                     for i, (date, msg_time, speaker, msg) in enumerate(sorted_context):
                         recent_conversation += f"{i+1}. [{speaker}] {msg}\n"
-                
+
                 query = f"""
         # 役割
         あなたは恋愛心理カウンセラーです。女性からのメッセージに対して、魅力的で自然な返信メッセージを作成することが得意です。
@@ -954,8 +955,6 @@ def main():
         # 男性側の思い
         {today_txt}
         """
-
-
 
                 ai_msg = rag_chain.invoke({"input": query, "chat_history": chat_history})
                 # セッション状態に結果を保存
@@ -1024,32 +1023,32 @@ def main():
         - 思いやり、誠実さ、ユーモア、知性、積極性、控えめさなどの特徴
         - 行動パターンや感情表現の傾向
         - メッセージから読み取れる価値観や人生観
-        
-        ## 2. 🎨 趣味・嗜好・ライフスタイル  
+
+        ## 2. 🎨 趣味・嗜好・ライフスタイル
         - 好きな食べ物、料理、お酒、カフェなどのグルメ嗜好
         - 趣味や娯楽（映画、音楽、読書、アニメ、ゲームなど）
         - 休日の過ごし方や旅行への興味
         - 仕事や学業に対する姿勢・キャリア志向
         - ファッションや美容への関心
         - 運動やスポーツへの取り組み
-        
+
         ## 3. 💬 コミュニケーションスタイル
         - メッセージの特徴（長さ、頻度、絵文字使用など）
         - 感情表現の仕方（嬉しい時、困った時、怒った時など）
         - 質問への答え方や会話の進め方
         - 相手への気遣いや配慮の表れ方
-        
+
         ## 4. 💕 恋愛観・関係性への姿勢
         - 男性への好意や関心を示すメッセージの具体例
         - デートや会うことへの反応
         - 関係性の発展に対する期待や願望
         - 恋愛における価値観や理想像
-        
+
         ## 5. 📈 時系列的変化・成長
         - メッセージの内容や態度の変化
         - 関係性の深まりに伴う変化
         - 新しい側面の発見や成長の兆し
-        
+
         ## 6. ✨ 総合評価・魅力ポイント
         - {partner_nickname}さんの最大の魅力や特徴
         - 恋愛パートナーとしての相性や可能性
@@ -1178,45 +1177,45 @@ def main():
         def convert_to_line_format(markdown_text):
             """MarkdownテキストをLINE用のプレーンテキストに変換"""
             import re
-            
+
             # Markdownの変換処理
             text = markdown_text
-            
+
             # ## 見出し → 絵文字付き見出し
             text = re.sub(r'^## (.+)$', r'✨\1✨', text, flags=re.MULTILINE)
-            
+
             # ### 見出し → 絵文字のみ保持
             text = re.sub(r'^### (.+)$', r'\1', text, flags=re.MULTILINE)
-            
+
             # チェックボックス変換
             text = re.sub(r'- \[ \] ', r'◯ ', text)
             text = re.sub(r'- \[x\] ', r'✅ ', text)
-            
+
             # **太字** → そのまま
             text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
-            
+
             # 空行の整理（3行以上の空行を2行に）
             text = re.sub(r'\n\n\n+', r'\n\n', text)
-            
+
             # 先頭と末尾の空行を削除
             text = text.strip()
-            
+
             return text
 
         # 元のMarkdownテキスト
         original_text = result["answer"]
-        
+
         # LINE用テキストに変換
         line_text = convert_to_line_format(original_text)
-        
+
         # ダウンロード用データの準備
         # UTF-8 BOM付きエンコーディングで文字化けを防止（Windows対応）
-        
+
         # 元のMarkdownテキスト用
         original_data = "\ufeff" + original_text
         original_bytes = original_data.encode("utf-8")
-        
-        # LINE用テキスト用  
+
+        # LINE用テキスト用
         line_data = "\ufeff" + line_text
         line_bytes = line_data.encode("utf-8")
 
@@ -1252,39 +1251,39 @@ def main():
     # ------------------------------------------------------
     # 保存された結果の表示（常に表示）
     # ------------------------------------------------------
-    
+
     # メッセージ生成結果の表示
     if st.session_state.message_result:
         st.divider()
         st.subheader("💬 生成されたメッセージ")
         st.write(st.session_state.message_result)
-        
+
         # クリアボタン
         if st.button("🗑️ メッセージをクリア", key="clear_message"):
             st.session_state.message_result = None
             st.rerun()
-    
+
     # 人格分析結果の表示
     if st.session_state.personality_result:
         st.divider()
         st.subheader("🧠 人格分析結果")
         st.markdown(st.session_state.personality_result)
-        
+
         # クリアボタン
         if st.button("🗑️ 人格分析をクリア", key="clear_personality"):
             st.session_state.personality_result = None
             st.rerun()
-    
+
     # やりたいことリスト結果の表示
     if st.session_state.wishlist_result:
         st.divider()
         st.subheader("💕 やりたいことリスト")
         st.markdown(st.session_state.wishlist_result)
-        
+
         # LINE用プレビュー
         st.subheader("📱 LINE用プレビュー")
         st.info("以下のテキストはLINEでコピペしやすい形式です")
-        
+
         # LINE用テキスト変換（同じロジック）
         def convert_to_line_format_display(markdown_text):
             import re
@@ -1296,13 +1295,13 @@ def main():
             text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
             text = re.sub(r'\n\n\n+', r'\n\n', text)
             return text.strip()
-        
+
         line_text_display = convert_to_line_format_display(st.session_state.wishlist_result)
         st.text(line_text_display)
-        
+
         # ダウンロードボタン（簡単版）
         col_dl1, col_dl2, col_dl3 = st.columns(3)
-        
+
         with col_dl1:
             # LINE用テキストダウンロード
             line_data = "\ufeff" + line_text_display
@@ -1312,9 +1311,9 @@ def main():
                 file_name=f"{partner_nickname}_LINE用_{datetime.now().strftime('%Y%m%d')}.txt",
                 mime="text/plain; charset=utf-8"
             )
-        
+
         with col_dl2:
-            # Markdown形式ダウンロード  
+            # Markdown形式ダウンロード
             markdown_data = "\ufeff" + st.session_state.wishlist_result
             st.download_button(
                 label="📄 Markdown DL",
@@ -1322,7 +1321,7 @@ def main():
                 file_name=f"{partner_nickname}_やりたいこと_{datetime.now().strftime('%Y%m%d')}.txt",
                 mime="text/plain; charset=utf-8"
             )
-            
+
         with col_dl3:
             # クリアボタン
             if st.button("🗑️ リストをクリア", key="clear_wishlist"):

@@ -3,14 +3,68 @@
     "python.terminal.activateEnvironment": true,
     "python.terminal.activateEnvInCurrentTerminal": true,
     "python.analysis.autoImportCompletions": true,
-    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.typeCheckingMode": "off",
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportSyntaxError": "error",
+        "reportIndentationError": "error",
+        "reportUndefinedVariable": "error",
+        "reportMissingImports": "warning"
+    },
+    "python.analysis.disabled": [
+        "reportAttributeAccessIssue",
+        "reportOptionalMemberAccess",
+        "reportGeneralTypeIssues",
+        "reportUnknownMemberType",
+        "reportUnknownVariableType",
+        "reportUnknownParameterType",
+        "reportUnusedVariable",
+        "reportUnusedImport",
+        "reportOptionalSubscript",
+        "reportOptionalIterable",
+        "reportPossiblyUnboundVariable"
+    ],
     "files.encoding": "utf8",
     "files.autoSave": "afterDelay",
+    "files.trimTrailingWhitespace": true,
+    "files.trimFinalNewlines": true,
+    "files.insertFinalNewline": true,
     "editor.formatOnSave": true,
-    "python.formatting.provider": "black",
+    "editor.formatOnSaveMode": "file",
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.trimAutoWhitespace": true,
+        "files.trimTrailingWhitespace": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll": "explicit"
+        },
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "python.formatting.provider": "none",
+    "problems.visibility": true,
+    "problems.showCurrentInStatus": true,
+    "editor.showError": true,
+    "editor.showWarning": true,
+    "black-formatter.args": [
+        "--line-length=88",
+        "--skip-string-normalization"
+    ],
+    "editor.rulers": [
+        88
+    ],
+    "editor.renderWhitespace": "boundary",
     "python.linting.enabled": true,
+    "python.linting.lintOnSave": true,
     "python.linting.flake8Enabled": true,
     "python.linting.pylintEnabled": false,
+    "python.linting.pycodestyleEnabled": false,
+    "python.linting.banditEnabled": false,
+    "python.linting.mypyEnabled": false,
+    "flake8.args": [
+        "--max-line-length=88",
+        "--ignore=E203,E501,W503"
+    ],
     "streamlit.serverPort": 8501,
     "terminal.integrated.defaultProfile.windows": "PowerShell",
     "git.enableSmartCommit": true,
