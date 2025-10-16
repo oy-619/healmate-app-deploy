@@ -11,8 +11,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+import openai
 from langchain_community.vectorstores import Chroma
-from langchain.chains import RetrievalQA
+
 from langchain.schema import Document, HumanMessage
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
@@ -25,8 +26,54 @@ load_dotenv()
 # ------------------------------------------------------
 save_dir = r"C:\work\ws_python\GenerationAiCamp\HM\.db"
 
-# Embeddingsの初期化
-embeddings = OpenAIEmbeddings()
+
+# OpenAI APIキーの確認と設定
+def check_openai_api_key():
+    """OpenAI APIキーの有効性を確認する"""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        st.error(
+            "❌ OPENAI_API_KEYが設定されていません。.envファイルを確認してください。"
+        )
+        st.info("💡 .envファイルに以下の形式で設定してください：")
+        st.code("OPENAI_API_KEY=sk-proj-...", language="text")
+        st.stop()
+
+    if not api_key.startswith(("sk-", "sk-proj-")):
+        st.error("❌ 無効なAPIキー形式です。正しいOpenAI APIキーを設定してください。")
+        st.info(f"現在設定されているキー: {api_key[:10]}...")
+        st.stop()
+
+    # APIキーを環境変数に明示的に設定
+    os.environ["OPENAI_API_KEY"] = api_key
+
+    # APIキーの状態表示（デバッグ用 - コメントアウト）
+    # st.success(f"✅ OpenAI APIキーを確認しました: {api_key[:15]}...{api_key[-4:]}")
+
+    # 追加の環境変数設定（念のため）
+    openai.api_key = api_key
+
+    return api_key
+
+
+# APIキーの確認
+api_key = check_openai_api_key()
+
+# Embeddingsの初期化（APIキー確認後）
+try:
+    embeddings = OpenAIEmbeddings()
+    # 接続テスト（簡単なテキストで確認）
+    test_embedding = embeddings.embed_query("test")
+    st.success("✅ OpenAI Embeddings接続成功")
+except Exception as e:
+    st.error(f"❌ OpenAI Embeddings初期化エラー: {str(e)}")
+    if "401" in str(e) or "invalid_api_key" in str(e):
+        st.error("🔑 APIキーが無効です。正しいAPIキーを設定してください。")
+    elif "quota" in str(e).lower() or "billing" in str(e).lower():
+        st.error("💰 APIクォータを超過しています。OpenAIアカウントを確認してください。")
+    else:
+        st.error("🌐 ネットワーク接続または一時的な問題の可能性があります。")
+    st.stop()
 
 # ------------------------------------------------------
 # 関数定義
@@ -53,7 +100,6 @@ def is_db():
 
 
 def get_all_messages():
-    all_documents = []
     # Chromeをヘッドレス（画面非表示）で起動
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
@@ -93,7 +139,16 @@ def get_all_messages():
 
     driver.quit()
 
-    # HTMLリストから情報を抽出してChromaに蓄積
+    # 最初のHTMLからパートナーのニックネームを取得
+    partner_nickname = None
+    if html_list:
+        soup = BeautifulSoup(html_list[0], "html.parser")
+        name_elements = soup.select_one("div.hover")
+        if name_elements:
+            partner_nickname = name_elements.get_text(strip=True)
+
+    # HTMLリストから🍓さんのメッセージのみを抽出
+    partner_messages = []
     for html in html_list:
         soup = BeautifulSoup(html, "html.parser")
         container = soup.select_one("div#container")
@@ -107,21 +162,123 @@ def get_all_messages():
                 time_tag = child.select_one("div.talkTime")
                 msg_tag_partner = child.select_one("div.talkBalloonColor2")
                 msg_time = time_tag.get_text(strip=True) if time_tag else ""
+
+                # 🍓さんのメッセージのみを収集
                 if msg_tag_partner:
                     msg = msg_tag_partner.get_text(strip=True)
-                    all_documents.append((current_date, msg_time, msg))
-    # ...既存コード...
+                    partner_messages.append((current_date, msg_time, msg))
 
-    # 重複排除（必要なら）
-    unique_docs = {(d[0], d[1], d[2]): d for d in all_documents}
-    all_documents = list(unique_docs.values())
+    # 重複排除
+    unique_msgs = {(d[0], d[1], d[2]): d for d in partner_messages}
+    partner_messages = list(unique_msgs.values())
 
+    # 🍓さんのメッセージのみでDocumentを作成
     docs = [
         Document(
             page_content=f"{date} {msg_time} {msg}",
-            metadata={"source": f"doc_{i}", "id": f"doc_{i}"},
+            metadata={
+                "source": f"partner_msg_{i}",
+                "id": f"partner_msg_{i}",
+                "role": "partner",
+                "date": date,
+                "time": msg_time,
+            },
         )
-        for i, (date, msg_time, msg) in enumerate(all_documents)
+        for i, (date, msg_time, msg) in enumerate(partner_messages)
+    ]
+
+    return docs
+
+
+def get_full_conversation_history():
+    """🍓さんと男性の全会話履歴を取得する関数"""
+    # Chromeをヘッドレス（画面非表示）で起動
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()), options=options
+    )
+
+    # ヒールメイトのログインページにアクセス
+    driver.get("https://healmate.jp/login")
+
+    # ログイン実行
+    driver.find_element("name", "id").send_keys("youcan9160@gmail.com")
+    driver.find_element("name", "pass").send_keys("oy19740619")
+    driver.find_element("name", "token").get_attribute("value")
+    driver.find_element("tag name", "form").submit()
+
+    # パートナーとのメッセージページにアクセス
+    driver.get("https://my.healmate.jp/talk?code=o5wphl0zfx6rt41#bottom")
+
+    # スクロールしながら全履歴を取得
+    html_list = []
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    while True:
+        html = driver.page_source
+        html_list.append(html)
+
+        # スクロールアップ
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(1)
+
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
+
+    driver.quit()
+
+    # パートナーのニックネームを取得
+    partner_nickname = None
+    if html_list:
+        soup = BeautifulSoup(html_list[0], "html.parser")
+        name_elements = soup.select_one("div.hover")
+        if name_elements:
+            partner_nickname = name_elements.get_text(strip=True)
+
+    # 全会話履歴を抽出（🍓さんと男性両方）
+    all_messages = []
+    for html in html_list:
+        soup = BeautifulSoup(html, "html.parser")
+        container = soup.select_one("div#container")
+        if not container:
+            continue
+        current_date = None
+        for child in container.children:
+            if child.name == "p" and "talkDate" in child.get("class", []):
+                current_date = child.get_text(strip=True)
+            elif child.name == "div" and current_date:
+                time_tag = child.select_one("div.talkTime")
+                msg_tag_self = child.select_one("div.talkBalloonColor1")
+                msg_tag_partner = child.select_one("div.talkBalloonColor2")
+                msg_time = time_tag.get_text(strip=True) if time_tag else ""
+
+                if msg_tag_self:
+                    msg = msg_tag_self.get_text(strip=True)
+                    all_messages.append((current_date, msg_time, "self", msg))
+                elif msg_tag_partner:
+                    msg = msg_tag_partner.get_text(strip=True)
+                    all_messages.append((current_date, msg_time, "partner", msg))
+
+    # 重複排除
+    unique_msgs = {(d[0], d[1], d[2], d[3]): d for d in all_messages}
+    all_messages = list(unique_msgs.values())
+
+    # Documentオブジェクトを作成
+    docs = [
+        Document(
+            page_content=f"{date} {msg_time} [{role}] {msg}",
+            metadata={
+                "source": f"conversation_{i}",
+                "id": f"conversation_{i}",
+                "role": role,
+                "date": date,
+                "time": msg_time,
+                "speaker": "男性" if role == "self" else partner_nickname,
+            },
+        )
+        for i, (date, msg_time, role, msg) in enumerate(all_messages)
     ]
 
     return docs
@@ -159,96 +316,56 @@ def get_new_messages():
     # ブラウザを閉じる
     driver.quit()
 
-    # HTMLをパースして必要な情報を抽出
+    # HTMLをパースして🍓さんの最新メッセージのみを抽出
     soup = BeautifulSoup(html, "html.parser")
     name_elements = soup.select_one("div.hover")
     partner_nickname = name_elements.get_text(strip=True)
 
     container = soup.select_one("div#container")
-    documents = []
-    self_docs = []
-    partner_docs = []
+    partner_messages = []
     current_date = None
 
-    # 会話履歴の各要素をループ処理
+    # 🍓さんのメッセージのみを収集
     for child in container.children:
-        # 日付の要素とメッセージの要素を判別して処理
         if child.name == "p" and "talkDate" in child.get("class", []):
-            # 日付を記憶
             current_date = child.get_text(strip=True)
-        # メッセージの要素
         elif child.name == "div" and current_date:
-            # 時間とメッセージを抽出
             time_tag = child.select_one("div.talkTime")
-            msg_tag_self = child.select_one("div.talkBalloonColor1")
             msg_tag_partner = child.select_one("div.talkBalloonColor2")
             msg_time = time_tag.get_text(strip=True) if time_tag else ""
-            if msg_tag_self:
-                msg = msg_tag_self.get_text(strip=True)
-                self_docs.append((current_date, msg_time, "【男性】", msg))
-            elif msg_tag_partner:
+
+            # 🍓さんのメッセージのみ収集
+            if msg_tag_partner:
                 msg = msg_tag_partner.get_text(strip=True)
-                partner_docs.append(
+                partner_messages.append(
                     (current_date, msg_time, f"【{partner_nickname}】", msg)
                 )
 
-    # 日付と時間でソート
-    self_docs_sorted = sorted(
-        self_docs, key=lambda x: parse_datetime(x[0], x[1]), reverse=True  # 最新順
+    # 🍓さんのメッセージを日付と時間でソート（最新順）
+    partner_messages_sorted = sorted(
+        partner_messages, key=lambda x: parse_datetime(x[0], x[1]), reverse=True
     )
-    if self_docs_sorted:
-        print("自分の最新メッセージ:", self_docs_sorted[0])
+
+    # 最新メッセージの確認
+    if partner_messages_sorted:
+        print(f"🍓{partner_nickname}さんの最新メッセージ:", partner_messages_sorted[0])
+        latest_partner_msg = partner_messages_sorted[0]
     else:
-        print("自分のメッセージが見つかりませんでした")
-
-    # 日付と時間でソート
-    partner_docs_sorted = sorted(
-        partner_docs, key=lambda x: parse_datetime(x[0], x[1]), reverse=True  # 最新順
-    )
-    if partner_docs_sorted:
-        print("パートナーの最新メッセージ:", partner_docs_sorted[0])
-    else:
-        print("パートナーのメッセージが見つかりませんでした")
-
-    # 全てのメッセージをまとめる
-    documents = self_docs + partner_docs
-
-    # 日付と時間でソート
-    documents_sorted = sorted(
-        documents, key=lambda x: parse_datetime(x[0], x[1]), reverse=True  # 最新順
-    )
-
-    # for date, time, role, msg in documents_sorted:
-    #   print(f"{date} {time} [{role}] {msg}")
-
-    docs = [
-        Document(
-            page_content=f"{date} {msg_time} {msg}",
-            metadata={"source": f"doc_{i}", "id": f"doc_{i}"},
-        )
-        for i, (date, msg_time, role, msg) in enumerate(documents_sorted)
-    ]
+        print(f"🍓{partner_nickname}さんのメッセージが見つかりませんでした")
+        latest_partner_msg = None
 
     return (
-        self_docs_sorted[0] if self_docs_sorted else None,
-        partner_docs_sorted[0] if partner_docs_sorted else None,
-        documents_sorted,
-        docs,
+        None,  # self_docs（不要）
+        latest_partner_msg,  # 🍓さんの最新メッセージのみ
+        [],  # documents_sorted（不要）
+        [],  # docs（不要）
         partner_nickname,
     )
 
 
 def format_message(msg):
-    import re
-
-    sentences = re.split(r"(。|\n)", msg)
-    formatted = ""
-    for s in sentences:
-        if s and s != "\n":
-            formatted += s.strip()
-            if s == "。":
-                formatted += "\n"
-    return formatted
+    """メッセージをそのまま返す（元の改行を保持）"""
+    return msg.strip()
 
 
 def safe_delete_db():
@@ -544,9 +661,9 @@ def main():
     # Streamlitで見やすく表示
     st.markdown(
         f"""
-    **日付**: {date}
-    **時間**: {msg_time}
-    **送信者**: {role}
+    **日付**: {date}  
+    **時間**: {msg_time}  
+    **送信者**: {role}  
     **メッセージ**:
     {msg_formatted}
     """
@@ -596,7 +713,7 @@ def main():
         )
 
         # 呼び出すLLMのインスタンスを用意。
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.5)
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.5)
 
         # 呼び出すLLMと、ベクターストア検索のためのRetriever、
         # また独立した入力生成用のプロンプトを渡すことで
@@ -717,7 +834,30 @@ def main():
     # これまでのメッセージ履歴からわかる人間性を分析する処理
     elif analyze_personality:
         st.divider()
-        st.write("これまでのメッセージ履歴からわかる人間性を分析しました。")
+        st.write(
+            f"🍓{partner_nickname}さんの全メッセージ履歴からわかる人間性を分析しました。"
+        )
+
+        # 全メッセージ履歴を取得
+        with st.spinner("全メッセージ履歴を取得中..."):
+            all_documents = get_all_messages()
+
+        if not all_documents:
+            st.error("メッセージ履歴が見つかりませんでした。")
+            st.stop()
+
+        # 🍓さんのメッセージのみを抽出
+        partner_messages = [
+            doc for doc in all_documents if doc.metadata.get("role") == "partner"
+        ]
+
+        if not partner_messages:
+            st.error(f"🍓{partner_nickname}さんのメッセージが見つかりませんでした。")
+            st.stop()
+
+        st.info(
+            f"分析対象: 🍓{partner_nickname}さんのメッセージ {len(partner_messages)}件"
+        )
 
         # ChromaDBを安全に初期化
         db = safe_init_chromadb()
@@ -726,48 +866,97 @@ def main():
             st.error("データベースの初期化に失敗しました。")
             st.stop()
 
-        # 新しい文書を安全に追加
+        # 🍓さんの全メッセージをデータベースに追加
         try:
-            date, msg_time, role, msg = partner_docs
-            partner_doc_obj = Document(
-                page_content=f"{date} {msg_time} {role} {msg}",
-                metadata={"source": "partner_latest", "id": "partner_latest"},
-            )
-            db.add_documents([partner_doc_obj])
+            db.add_documents(partner_messages)
             db.persist()
         except Exception as add_error:
-            st.warning(
-                f"最新メッセージの追加中にエラーが発生しました: {str(add_error)}"
-            )
+            st.warning(f"メッセージの追加中にエラーが発生しました: {str(add_error)}")
             # エラーが発生しても処理を続行
 
-        # DBからRetrieverを作成
-        retriever = db.as_retriever()
+        # DBからRetrieverを作成（検索結果数を増やして全体的な分析を可能にする）
+        retriever = db.as_retriever(search_kwargs={"k": 20})
 
-        query = """
+        query = f"""
         あなたは優秀な心理カウンセラーです。
-        以下のメッセージ履歴から、女性の人間性・好意・性格・価値観・コミュニケーションの特徴を分析してください。
-        - 好きな食べ物や趣味、休日の過ごし方、仕事や学業に対する姿勢などを具体的に挙げる
-        - 性格や価値観、行動パターン、感情表現、対人関係の特徴を具体的に挙げる
-        - 思いやり、誠実さ、ユーモア、知性、積極性、控えめさなどの要素を分析
-        - 男性への好意や関心の度合い、感情や反応の場面を指摘
-        - 判断が難しい場合はその旨も記載
-        - 根拠となるメッセージ内容や表現も引用
-        - 客観的かつ具体的に記述
-        - やりたいことリストを具体的に抽出
+        🍓{partner_nickname}さんの**これまでの全メッセージ履歴**を総合的に分析し、
+        人間性・性格・価値観・コミュニケーションの特徴を詳細に分析してください。
+
+        【重要】分析は蓄積された全メッセージを基に行い、時系列的な変化や一貫性も考慮してください。
+
+        【分析項目】
+        ## 1. 🌟 基本的な性格・人柄
+        - 思いやり、誠実さ、ユーモア、知性、積極性、控えめさなどの特徴
+        - 行動パターンや感情表現の傾向
+        - メッセージから読み取れる価値観や人生観
+        
+        ## 2. 🎨 趣味・嗜好・ライフスタイル  
+        - 好きな食べ物、料理、お酒、カフェなどのグルメ嗜好
+        - 趣味や娯楽（映画、音楽、読書、アニメ、ゲームなど）
+        - 休日の過ごし方や旅行への興味
+        - 仕事や学業に対する姿勢・キャリア志向
+        - ファッションや美容への関心
+        - 運動やスポーツへの取り組み
+        
+        ## 3. 💬 コミュニケーションスタイル
+        - メッセージの特徴（長さ、頻度、絵文字使用など）
+        - 感情表現の仕方（嬉しい時、困った時、怒った時など）
+        - 質問への答え方や会話の進め方
+        - 相手への気遣いや配慮の表れ方
+        
+        ## 4. 💕 恋愛観・関係性への姿勢
+        - 男性への好意や関心を示すメッセージの具体例
+        - デートや会うことへの反応
+        - 関係性の発展に対する期待や願望
+        - 恋愛における価値観や理想像
+        
+        ## 5. 📈 時系列的変化・成長
+        - メッセージの内容や態度の変化
+        - 関係性の深まりに伴う変化
+        - 新しい側面の発見や成長の兆し
+        
+        ## 6. ✨ 総合評価・魅力ポイント
+        - {partner_nickname}さんの最大の魅力や特徴
+        - 恋愛パートナーとしての相性や可能性
+        - 今後の関係発展への提案
+
+        【出力要件】
+        - 各項目で必ず具体的なメッセージ内容を引用すること
+        - 「メッセージ例：」として実際の発言を明記
+        - 判断が困難な場合は「情報不足のため判断困難」と記載
+        - 客観的で建設的な分析を心がける
+        - {partner_nickname}さんの人格を尊重した表現を使用
         """
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.5)
-        chain = RetrievalQA.from_chain_type(
-            llm=llm, chain_type="stuff", retriever=retriever
+
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+
+        # 新しいRAG chainの作成
+        prompt_template = ChatPromptTemplate.from_template(
+            "コンテキスト: {context}\n\n質問: {input}\n\n回答:"
         )
-        result = chain.invoke({"query": query})
-        st.write(f"{result['result']}")
+        document_chain = create_stuff_documents_chain(llm, prompt_template)
+        rag_chain = create_retrieval_chain(retriever, document_chain)
+
+        result = rag_chain.invoke({"input": query})
+        st.write(f"{result['answer']}")
         st.divider()
 
     # 二人のやりたいことリストを作成する処理
     elif create_wishlist:
         st.divider()
-        st.write(f"{partner_nickname}さんと二人で叶えたいことリストを作成しました。")
+        st.write(
+            f"🍓{partner_nickname}さんと二人の全会話履歴から、やりたいことリストを作成しました。"
+        )
+
+        # 全メッセージ履歴を取得（🍓さんと男性両方）
+        with st.spinner("全会話履歴を取得中..."):
+            all_conversation = get_full_conversation_history()
+
+        if not all_conversation:
+            st.error("会話履歴が見つかりませんでした。")
+            st.stop()
+
+        st.info(f"分析対象: 全会話履歴 {len(all_conversation)}件のメッセージ")
 
         # ChromaDBを安全に初期化
         db = safe_init_chromadb()
@@ -776,23 +965,16 @@ def main():
             st.error("データベースの初期化に失敗しました。")
             st.stop()
 
-        # 新しい文書を安全に追加
+        # 全会話履歴をデータベースに追加
         try:
-            date, msg_time, role, msg = partner_docs
-            partner_doc_obj = Document(
-                page_content=f"{date} {msg_time} {role} {msg}",
-                metadata={"source": "partner_latest", "id": "partner_latest"},
-            )
-            db.add_documents([partner_doc_obj])
+            db.add_documents(all_conversation)
             db.persist()
         except Exception as add_error:
-            st.warning(
-                f"最新メッセージの追加中にエラーが発生しました: {str(add_error)}"
-            )
+            st.warning(f"会話履歴の追加中にエラーが発生しました: {str(add_error)}")
             # エラーが発生しても処理を続行
 
-        # DBからRetrieverを作成
-        retriever = db.as_retriever()
+        # DBからRetrieverを作成（より多くの関連会話を検索）
+        retriever = db.as_retriever(search_kwargs={"k": 30})
 
         query = f"""
         あなたは優秀な恋愛コンサルタントです。
@@ -842,38 +1024,49 @@ def main():
         - 情報が不足している場合は「メッセージからは二人での具体的な希望が確認できませんでした」と記載
         """
 
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.3)
-        chain = RetrievalQA.from_chain_type(
-            llm=llm, chain_type="stuff", retriever=retriever
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+
+        # 新しいRAG chainの作成
+        prompt_template = ChatPromptTemplate.from_template(
+            "コンテキスト: {context}\n\n質問: {input}\n\n回答:"
         )
-        result = chain.invoke({"query": query})
-        st.markdown(result["result"])
+        document_chain = create_stuff_documents_chain(llm, prompt_template)
+        rag_chain = create_retrieval_chain(retriever, document_chain)
+
+        result = rag_chain.invoke({"input": query})
+        st.markdown(result["answer"])
         st.divider()
 
         # 二人のやりたいことリストをダウンロード可能なテキストファイルとして提供
         # UTF-8 BOM付きエンコーディングで文字化けを防止（Windows対応）
-        download_text = result["result"]
+        download_text = result["answer"]
         # BOM（Byte Order Mark）を追加してWindowsでの文字化けを防ぐ
-        download_data = '\ufeff' + download_text
-        download_bytes = download_data.encode('utf-8')
-        
+        download_data = "\ufeff" + download_text
+        download_bytes = download_data.encode("utf-8")
+
         # ダウンロードボタンを2つ提供（日本語ファイル名とASCIIファイル名）
         col_dl1, col_dl2 = st.columns(2)
-        
+
         with col_dl1:
             st.download_button(
                 label="💕 やりたいことリスト（日本語）",
                 data=download_bytes,
-                file_name=f"{partner_nickname}_やりたいことリスト_{datetime.now().strftime('%Y%m%d')}.txt",
+                file_name=(
+                    f"{partner_nickname}_やりたいことリスト_"
+                    f"{datetime.now().strftime('%Y%m%d')}.txt"
+                ),
                 mime="text/plain; charset=utf-8",
                 use_container_width=True,
             )
-        
+
         with col_dl2:
             st.download_button(
                 label="💕 Wishlist (ASCII)",
                 data=download_bytes,
-                file_name=f"{partner_nickname}_couple_wishlist_{datetime.now().strftime('%Y%m%d')}.txt",
+                file_name=(
+                    f"{partner_nickname}_couple_wishlist_"
+                    f"{datetime.now().strftime('%Y%m%d')}.txt"
+                ),
                 mime="text/plain; charset=utf-8",
                 use_container_width=True,
             )

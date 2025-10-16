@@ -1,0 +1,26 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "python.defaultInterpreterPath": "./env/Scripts/python.exe",
+        "python.terminal.activateEnvironment": true,
+        "python.terminal.activateEnvInCurrentTerminal": true,
+        "files.encoding": "utf8",
+        "files.autoSave": "afterDelay",
+        "editor.formatOnSave": true,
+        "python.formatting.provider": "black"
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.flake8",
+            "ms-python.black-formatter",
+            "ms-toolsai.jupyter",
+            "redhat.vscode-yaml",
+            "ms-vscode.vscode-json"
+        ]
+    }
+}

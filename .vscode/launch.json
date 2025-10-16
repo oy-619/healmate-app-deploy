@@ -1,0 +1,74 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Streamlit: healmate_replymsg_strawberry",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "healmate_replymsg_strawberry.py",
+                "--server.port=8501",
+                "--server.headless=false",
+                "--browser.gatherUsageStats=false"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "STREAMLIT_SERVER_PORT": "8501"
+            },
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/env/Scripts/python.exe"
+        },
+        {
+            "name": "Streamlit: healmate_message_gen",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "healmate_message_gen.py",
+                "--server.port=8502",
+                "--server.headless=false",
+                "--browser.gatherUsageStats=false"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "STREAMLIT_SERVER_PORT": "8502"
+            },
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/env/Scripts/python.exe"
+        },
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/env/Scripts/python.exe"
+        },
+        {
+            "name": "Python: Debug Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/env/Scripts/python.exe"
+        }
+    ]
+}
