@@ -284,6 +284,105 @@ def get_full_conversation_history():
     return docs
 
 
+def get_recent_conversation_context():
+    """最新の会話の流れを取得して、自然な文脈を提供する"""
+    # Chromeをヘッドレス（画面非表示）で起動
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()), options=options
+    )
+
+    # ヒールメイトのログインページにアクセス
+    driver.get("https://healmate.jp/login")
+
+    # ログイン実行
+    driver.find_element("name", "id").send_keys("youcan9160@gmail.com")
+    driver.find_element("name", "pass").send_keys("oy19740619")
+    driver.find_element("name", "token").get_attribute("value")
+    driver.find_element("tag name", "form").submit()
+
+    # パートナーとのメッセージページにアクセス
+    driver.get("https://my.healmate.jp/talk?code=o5wphl0zfx6rt41#bottom")
+
+    # 最新情報のみを取得するため、ページ最下部までスクロール
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.ID, "container"))
+    )
+
+    # ページ全体のHTMLを取得
+    html = driver.page_source
+
+    # ブラウザを閉じる
+    driver.quit()
+
+    # HTMLをパースして直近の会話履歴を取得
+    soup = BeautifulSoup(html, "html.parser")
+    name_elements = soup.select_one("div.hover")
+    partner_nickname = name_elements.get_text(strip=True)
+
+    container = soup.select_one("div#container")
+    all_recent_messages = []
+    current_date = None
+
+    # 直近のメッセージを両方（男性・🍓さん）収集
+    for child in container.children:
+        if child.name == "p" and "talkDate" in child.get("class", []):
+            current_date = child.get_text(strip=True)
+        elif child.name == "div" and current_date:
+            time_tag = child.select_one("div.talkTime")
+            msg_tag_self = child.select_one("div.talkBalloonColor1")  # 男性のメッセージ
+            msg_tag_partner = child.select_one("div.talkBalloonColor2")  # 🍓さんのメッセージ
+            msg_time = time_tag.get_text(strip=True) if time_tag else ""
+
+            # 男性のメッセージ
+            if msg_tag_self:
+                msg = msg_tag_self.get_text(strip=True)
+                all_recent_messages.append(
+                    (current_date, msg_time, "男性", msg)
+                )
+
+            # 🍓さんのメッセージ
+            if msg_tag_partner:
+                msg = msg_tag_partner.get_text(strip=True)
+                all_recent_messages.append(
+                    (current_date, msg_time, f"{partner_nickname}", msg)
+                )
+
+    # メッセージを日付と時間でソート（最新順）
+    all_recent_messages_sorted = sorted(
+        all_recent_messages, key=lambda x: parse_datetime(x[0], x[1]), reverse=True
+    )
+
+    # 直近5件の会話履歴を取得（文脈のため）
+    recent_context = all_recent_messages_sorted[:5]
+    
+    # 最新のパートナーメッセージを特定
+    latest_partner_msg = None
+    latest_self_msg = None
+    
+    for msg in all_recent_messages_sorted:
+        if msg[2] == partner_nickname and latest_partner_msg is None:
+            latest_partner_msg = msg
+        if msg[2] == "男性" and latest_self_msg is None:
+            latest_self_msg = msg
+        
+        # 両方見つかったらループを抜ける
+        if latest_partner_msg and latest_self_msg:
+            break
+
+    print(f"🍓{partner_nickname}さんの最新メッセージ:", latest_partner_msg)
+    print(f"男性の最新メッセージ:", latest_self_msg)
+
+    return {
+        'partner_nickname': partner_nickname,
+        'latest_partner_msg': latest_partner_msg,
+        'latest_self_msg': latest_self_msg,
+        'recent_context': recent_context
+    }
+
+
 def get_new_messages():
     # Chromeをヘッドレス（画面非表示）で起動
     options = webdriver.ChromeOptions()
@@ -576,13 +675,31 @@ def safe_init_chromadb(force_recreate=False):
 
 def main():
     # ------------------------------------------------------
+    # セッション状態の初期化
+    # ------------------------------------------------------
+    
+    # 結果を保持するセッション状態を初期化
+    if 'message_result' not in st.session_state:
+        st.session_state.message_result = None
+    if 'personality_result' not in st.session_state:
+        st.session_state.personality_result = None
+    if 'wishlist_result' not in st.session_state:
+        st.session_state.wishlist_result = None
+    if 'wishlist_line_text' not in st.session_state:
+        st.session_state.wishlist_line_text = None
+        
+    # ------------------------------------------------------
     # メッセージ情報取得処理
     # ------------------------------------------------------
 
-    # パートナーと自分自身の最新メッセージ1件とパートナーのニックネームを情報を取得
+    # 最新の会話コンテキストを取得
     try:
-        result = get_new_messages()
-        self_docs, partner_docs, documents_sorted, docs, partner_nickname = result
+        # 新しい会話コンテキスト取得関数を使用
+        conversation_context = get_recent_conversation_context()
+        partner_nickname = conversation_context['partner_nickname']
+        partner_docs = conversation_context['latest_partner_msg']
+        self_docs = conversation_context['latest_self_msg']
+        recent_context = conversation_context['recent_context']
 
         # メッセージが取得できない場合のチェック
         if partner_docs is None:
@@ -686,113 +803,137 @@ def main():
         create_wishlist = st.button("� やりたいことリスト", use_container_width=True)
 
     if generate_message:
-        st.divider()
+        # ユーザー入力のチェック
+        if not today_txt or today_txt.strip() == "":
+            st.error("メッセージを生成するには、今日の出来事や思いを入力してください。")
+        else:
+            with st.spinner("💬 メッセージを生成中..."):
+                # 全会話履歴を取得（メッセージ生成には全履歴が必要）
+                all_conversation_docs = get_full_conversation_history()
+                
+                if not all_conversation_docs:
+                    st.error("会話履歴が見つかりませんでした。")
+                    st.stop()
+                
+                db = Chroma.from_documents(all_conversation_docs, embedding=embeddings)
+                db.persist()
+                retriever = db.as_retriever()
 
-        db = Chroma.from_documents(docs, embedding=embeddings)
-        db.persist()
-        retriever = db.as_retriever()
+                # 手順1〜3の処理を実現するにあたり、LLMへのリクエストは以下の2回行われる。
+                # 1.会話履歴がなくても理解できる、独立した入力を生成するためのLLMリクエスト
+                # 2.生成された入力内容と関連ドキュメントを渡して、最終的な回答を生成するためのLLMリクエスト
+                # ここでは「1. 会話履歴がなくても理解できる、独立した入力を生成するためのLLMリクエスト」を行うための、専用のプロンプトを用意。
+                question_generator_template = (
+                    "会話履歴と最新の入力をもとに、"
+                    "会話履歴なしでも理解できる独立した入力テキストを生成してください。"
+                )
 
-        # 手順1〜3の処理を実現するにあたり、LLMへのリクエストは以下の2回行われる。
-        # 1.会話履歴がなくても理解できる、独立した入力を生成するためのLLMリクエスト
-        # 2.生成された入力内容と関連ドキュメントを渡して、最終的な回答を生成するためのLLMリクエスト
-        # ここでは「1. 会話履歴がなくても理解できる、独立した入力を生成するためのLLMリクエスト」を行うための、専用のプロンプトを用意。
-        question_generator_template = (
-            "会話履歴と最新の入力をもとに、"
-            "会話履歴なしでも理解できる独立した入力テキストを生成してください。"
-        )
+                # ChatPromptTemplateでは、LLMの振る舞いを制御するシステムメッセージとユーザーメッセージ、
+                # また会話履歴を差し込むためのプレースホルダーを用意している。
+                # システムメッセージとユーザーメッセージは、このように省略した書き方が可能。
+                question_generator_prompt = ChatPromptTemplate.from_messages(
+                    [
+                        ("system", question_generator_template),
+                        MessagesPlaceholder("chat_history"),
+                        ("human", "{input}"),
+                    ]
+                )
 
-        # ChatPromptTemplateでは、LLMの振る舞いを制御するシステムメッセージとユーザーメッセージ、
-        # また会話履歴を差し込むためのプレースホルダーを用意している。
-        # システムメッセージとユーザーメッセージは、このように省略した書き方が可能。
-        question_generator_prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", question_generator_template),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-            ]
-        )
+                # 呼び出すLLMのインスタンスを用意。
+                llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.5)
 
-        # 呼び出すLLMのインスタンスを用意。
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.5)
+                # 呼び出すLLMと、ベクターストア検索のためのRetriever、
+                # また独立した入力生成用のプロンプトを渡すことで
+                # 「create_history_aware_retriever」のインスタンスを生成。
+                # Retrieverには、「Retrievers」の前パートで作成したインスタンス
+                # (retriever = db.as_retriever())を使う。
+                # これで、手順1と2を実行する準備が完了。
+                history_aware_retriever = create_history_aware_retriever(
+                    llm, retriever, question_generator_prompt
+                )
 
-        # 呼び出すLLMと、ベクターストア検索のためのRetriever、
-        # また独立した入力生成用のプロンプトを渡すことで
-        # 「create_history_aware_retriever」のインスタンスを生成。
-        # Retrieverには、「Retrievers」の前パートで作成したインスタンス
-        # (retriever = db.as_retriever())を使う。
-        # これで、手順1と2を実行する準備が完了。
-        history_aware_retriever = create_history_aware_retriever(
-            llm, retriever, question_generator_prompt
-        )
+                # 会話履歴なしでも理解できる独立した入力内容と、
+                # ベクターストアから取得した関連ドキュメントをもとに
+                # LLMから回答を得るためのプロンプトを用意。
+                # 「{context}」の箇所に関連ドキュメントが埋め込まれる。
+                # このプロンプトを使うことで、入力内容に対して会話履歴を踏まえた回答を得られる。
+                question_answer_template = """
+                あなたは優秀な質問応答アシスタントです。以下のcontextを使用して質問に答えてください。
+                また答えが分からない場合は、無理に答えようとせず「分からない」という旨を答えてください。"
+                {context}
+                """
+                question_answer_prompt = ChatPromptTemplate.from_messages(
+                    [
+                        ("system", question_answer_template),
+                        MessagesPlaceholder("chat_history"),
+                        ("human", "{input}"),
+                    ]
+                )
 
-        # 会話履歴なしでも理解できる独立した入力内容と、
-        # ベクターストアから取得した関連ドキュメントをもとに
-        # LLMから回答を得るためのプロンプトを用意。
-        # 「{context}」の箇所に関連ドキュメントが埋め込まれる。
-        # このプロンプトを使うことで、入力内容に対して会話履歴を踏まえた回答を得られる。
-        question_answer_template = """
-        あなたは優秀な質問応答アシスタントです。以下のcontextを使用して質問に答えてください。
-        また答えが分からない場合は、無理に答えようとせず「分からない」という旨を答えてください。"
-        {context}
-        """
-        question_answer_prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", question_answer_template),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-            ]
-        )
+                # 呼び出すLLMとプロンプトを引数として渡し
+                # 「create_stuff_documents_chain」のインスタンスを生成。
+                # このインスタンスの機能を使うことで、会話履歴なしでも理解できる
+                # 独立した入力内容と取得した関連ドキュメントをもとに、LLMに回答を生成させることができる。
+                question_answer_chain = create_stuff_documents_chain(
+                    llm, question_answer_prompt
+                )
 
-        # 呼び出すLLMとプロンプトを引数として渡し
-        # 「create_stuff_documents_chain」のインスタンスを生成。
-        # このインスタンスの機能を使うことで、会話履歴なしでも理解できる
-        # 独立した入力内容と取得した関連ドキュメントをもとに、LLMに回答を生成させることができる。
-        question_answer_chain = create_stuff_documents_chain(
-            llm, question_answer_prompt
-        )
+                # 引数には、先ほど作成した「create_history_aware_retriever」のインスタンスと、
+                # 「create_stuff_documents_chain」のインスタンスを渡す。
+                # 後ほど、この「create_retrieval_chain」のインスタンスが持つ「invoke()」メソッドに
+                # 「入力内容」と「会話履歴」の2つのデータを渡すことで、独立した入力内容の生成と
+                # 関連ドキュメントの取得、最終的なLLMからの回答生成を内部的に一括で行える。
+                rag_chain = create_retrieval_chain(
+                    history_aware_retriever, question_answer_chain
+                )
 
-        # 引数には、先ほど作成した「create_history_aware_retriever」のインスタンスと、
-        # 「create_stuff_documents_chain」のインスタンスを渡す。
-        # 後ほど、この「create_retrieval_chain」のインスタンスが持つ「invoke()」メソッドに
-        # 「入力内容」と「会話履歴」の2つのデータを渡すことで、独立した入力内容の生成と
-        # 関連ドキュメントの取得、最終的なLLMからの回答生成を内部的に一括で行える。
-        rag_chain = create_retrieval_chain(
-            history_aware_retriever, question_answer_chain
-        )
+                # LLM呼び出しを行う前に、会話履歴を保持するためのデータの入れ物を用意。
+                # 2回目以降のLLM呼び出しでは、入力内容と会話履歴をもとに、
+                # 会話履歴なしでもLLMが理解できる「独立した入力内容」を生成する。
+                # そのため入力内容とLLMからの回答内容は、LLM呼び出しのたびに
+                # 会話履歴として保存していく必要がある。
+                chat_history = []
 
-        # LLM呼び出しを行う前に、会話履歴を保持するためのデータの入れ物を用意。
-        # 2回目以降のLLM呼び出しでは、入力内容と会話履歴をもとに、
-        # 会話履歴なしでもLLMが理解できる「独立した入力内容」を生成する。
-        # そのため入力内容とLLMからの回答内容は、LLM呼び出しのたびに
-        # 会話履歴として保存していく必要がある。
-        chat_history = []
-
-        query = f"""
+                # 直近の会話履歴から文脈を作成
+                recent_conversation = ""
+                if recent_context:
+                    recent_conversation = "# 直近の会話の流れ（時系列順）\n"
+                    # 古い順に並び替えて会話の流れを表示
+                    sorted_context = sorted(recent_context, 
+                                          key=lambda x: parse_datetime(x[0], x[1]))
+                    for i, (date, msg_time, speaker, msg) in enumerate(sorted_context):
+                        recent_conversation += f"{i+1}. [{speaker}] {msg}\n"
+                
+                query = f"""
         # 役割
-        あなたは恋愛心理カウンセラーです。女性からのメッセージに対して、魅力的な返信メッセージを作成することが得意です。
+        あなたは恋愛心理カウンセラーです。女性からのメッセージに対して、魅力的で自然な返信メッセージを作成することが得意です。
 
         # 文脈
         - 男性と{partner_nickname}は、1カ月前にマッチングしていて、メッセージをやり取りしている。
         - 男性は{partner_nickname}に好意を持っていて、真剣に交際を考えている。
         - 男性の年齢: 51歳
-        - 女性の年齢: {partner_nickname}
-        - 女性の趣味や性格: （プロフィール情報を追加）
+        - 以下の会話の流れを踏まえて、自然で違和感のない返信を作成する必要がある。
 
-        # 命令
-        - {partner_nickname}の最新メッセージ内容をもとに男性側の思いを含めて、
-          {partner_nickname}がキュンとする魅力的な返信メッセージを作成してください。
+        {recent_conversation}
+
+        # 重要な指示
+        - 上記の会話の流れを必ず把握し、話の続きとして自然になるように返信してください。
+        - {partner_nickname}の最新メッセージに対する直接的な反応・応答を含めること。
+        - 男性の前回のメッセージとのつながりを意識して、会話が不自然に途切れないようにする。
+        - 話題の変更がある場合は、自然な移行を心がける。
+        - 相手が質問している場合は、必ずその質問に答える。
+        - 相手が感情を表現している場合は、それに共感や理解を示す。
+
+        # メッセージ作成の基本方針
         - 現在の時刻に合わせた挨拶を文頭にいれること。
-        - 男性から{partner_nickname}に対する返信メッセージであること。
-        - {partner_nickname}の最新メッセージを細かくメッセージに反映すること。
-        - 返信メッセージは、{partner_nickname}のメッセージ内容にしっかりと応答していること。
-        - ニックネーム（{partner_nickname}）を反映すること。
-        - 男性の最新メッセージと{partner_nickname}の最新メッセージを時系列で文脈を把握して、自然な会話となること。
-        - 男性側の思いを必ず反映すること。
+        - {partner_nickname}の最新メッセージの内容を細かく反映すること。
+        - ニックネーム（{partner_nickname}）を適切に使用すること。
+        - 男性側の思いを自然に反映すること。
         - 生成するメッセージには「とのこと」の言葉は使用しないこと。
         - スマートでフレンドリーかつ、自然な文体にすること（軽すぎず、堅すぎず）
         - 優しい言葉遣いをベースに、知的、ユーモア、冗談をバランスよく含めること。
         - 長文になりすぎず、10～20文程度で簡潔にまとめること。
-        - 文の内容にあった絵文字を入れること。
+        - 文の内容にあった絵文字を適度に入れること。
         - 自身のことを「自分」または「俺」という一人称で表現すること。
         - 語尾に力を入れすぎず、柔らかく表現すること。
         - 語尾に適度な抑揚をつけること。
@@ -805,31 +946,25 @@ def main():
         - パターンを**3種類（知的で落ち着き／甘めでドキッとする／短文クール）**で提示
 
         # {partner_nickname}の最新メッセージ
-        {partner_docs}
+        {partner_docs[3] if partner_docs and len(partner_docs) > 3 else "メッセージが見つかりませんでした"}
 
         # 男性の最新メッセージ
-        {self_docs if self_docs else "メッセージが見つかりませんでした"}
+        {self_docs[3] if self_docs and len(self_docs) > 3 else "メッセージが見つかりませんでした"}
 
         # 男性側の思い
         {today_txt}
         """
 
-        # 直近5件のメッセージ履歴をプロンプトに含める
-        # recent_history = "\n".join([
-        #     f"{date} {msg_time} [{role}] {msg}"
-        #     for date, msg_time, role, msg in documents_sorted[:5]
-        # ])
-        # query += f"\n# 直近の会話履歴\n{recent_history}\n"
 
-        ai_msg = rag_chain.invoke({"input": query, "chat_history": chat_history})
-        # print(f"\n\n==================＜メッセージ＞==================\n{ai_msg['answer']}\n\n")
-        chat_history.extend([HumanMessage(content=query), ai_msg["answer"]])
-        st.write(f"{ai_msg['answer']}")
-        print(
-            f"\n\n==================生成メッセージ=================="
-            f"\n{ai_msg['answer']}\n\n"
-        )
-        st.divider()
+
+                ai_msg = rag_chain.invoke({"input": query, "chat_history": chat_history})
+                # セッション状態に結果を保存
+                st.session_state.message_result = ai_msg['answer']
+                chat_history.extend([HumanMessage(content=query), ai_msg["answer"]])
+                print(
+                    f"\n\n==================生成メッセージ=================="
+                    f"\n{ai_msg['answer']}\n\n"
+                )
 
     # これまでのメッセージ履歴からわかる人間性を分析する処理
     elif analyze_personality:
@@ -937,9 +1072,10 @@ def main():
         document_chain = create_stuff_documents_chain(llm, prompt_template)
         rag_chain = create_retrieval_chain(retriever, document_chain)
 
-        result = rag_chain.invoke({"input": query})
-        st.write(f"{result['answer']}")
-        st.divider()
+        with st.spinner("🧠 人格分析中..."):
+            result = rag_chain.invoke({"input": query})
+            # セッション状態に結果を保存
+            st.session_state.personality_result = result['answer']
 
     # 二人のやりたいことリストを作成する処理
     elif create_wishlist:
@@ -1033,43 +1169,166 @@ def main():
         document_chain = create_stuff_documents_chain(llm, prompt_template)
         rag_chain = create_retrieval_chain(retriever, document_chain)
 
-        result = rag_chain.invoke({"input": query})
-        st.markdown(result["answer"])
-        st.divider()
+        with st.spinner("💕 やりたいことリスト作成中..."):
+            result = rag_chain.invoke({"input": query})
+            # セッション状態に結果を保存
+            st.session_state.wishlist_result = result["answer"]
 
-        # 二人のやりたいことリストをダウンロード可能なテキストファイルとして提供
+        # LINEでコピペしやすい形式に変換
+        def convert_to_line_format(markdown_text):
+            """MarkdownテキストをLINE用のプレーンテキストに変換"""
+            import re
+            
+            # Markdownの変換処理
+            text = markdown_text
+            
+            # ## 見出し → 絵文字付き見出し
+            text = re.sub(r'^## (.+)$', r'✨\1✨', text, flags=re.MULTILINE)
+            
+            # ### 見出し → 絵文字のみ保持
+            text = re.sub(r'^### (.+)$', r'\1', text, flags=re.MULTILINE)
+            
+            # チェックボックス変換
+            text = re.sub(r'- \[ \] ', r'◯ ', text)
+            text = re.sub(r'- \[x\] ', r'✅ ', text)
+            
+            # **太字** → そのまま
+            text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+            
+            # 空行の整理（3行以上の空行を2行に）
+            text = re.sub(r'\n\n\n+', r'\n\n', text)
+            
+            # 先頭と末尾の空行を削除
+            text = text.strip()
+            
+            return text
+
+        # 元のMarkdownテキスト
+        original_text = result["answer"]
+        
+        # LINE用テキストに変換
+        line_text = convert_to_line_format(original_text)
+        
+        # ダウンロード用データの準備
         # UTF-8 BOM付きエンコーディングで文字化けを防止（Windows対応）
-        download_text = result["answer"]
-        # BOM（Byte Order Mark）を追加してWindowsでの文字化けを防ぐ
-        download_data = "\ufeff" + download_text
-        download_bytes = download_data.encode("utf-8")
+        
+        # 元のMarkdownテキスト用
+        original_data = "\ufeff" + original_text
+        original_bytes = original_data.encode("utf-8")
+        
+        # LINE用テキスト用  
+        line_data = "\ufeff" + line_text
+        line_bytes = line_data.encode("utf-8")
 
-        # ダウンロードボタンを2つ提供（日本語ファイル名とASCIIファイル名）
+        # ダウンロードボタンを2つ提供（LINE用とMarkdown用）
         col_dl1, col_dl2 = st.columns(2)
 
         with col_dl1:
             st.download_button(
-                label="💕 やりたいことリスト（日本語）",
-                data=download_bytes,
+                label="� LINE用テキスト",
+                data=line_bytes,
+                file_name=(
+                    f"{partner_nickname}_やりたいことリスト_LINE用_"
+                    f"{datetime.now().strftime('%Y%m%d')}.txt"
+                ),
+                mime="text/plain; charset=utf-8",
+                use_container_width=True,
+                help="LINEでコピペしやすい形式のテキストファイル"
+            )
+
+        with col_dl2:
+            st.download_button(
+                label="� Markdown形式",
+                data=original_bytes,
                 file_name=(
                     f"{partner_nickname}_やりたいことリスト_"
                     f"{datetime.now().strftime('%Y%m%d')}.txt"
                 ),
                 mime="text/plain; charset=utf-8",
                 use_container_width=True,
+                help="元のMarkdown形式のテキストファイル"
             )
 
-        with col_dl2:
+    # ------------------------------------------------------
+    # 保存された結果の表示（常に表示）
+    # ------------------------------------------------------
+    
+    # メッセージ生成結果の表示
+    if st.session_state.message_result:
+        st.divider()
+        st.subheader("💬 生成されたメッセージ")
+        st.write(st.session_state.message_result)
+        
+        # クリアボタン
+        if st.button("🗑️ メッセージをクリア", key="clear_message"):
+            st.session_state.message_result = None
+            st.rerun()
+    
+    # 人格分析結果の表示
+    if st.session_state.personality_result:
+        st.divider()
+        st.subheader("🧠 人格分析結果")
+        st.markdown(st.session_state.personality_result)
+        
+        # クリアボタン
+        if st.button("🗑️ 人格分析をクリア", key="clear_personality"):
+            st.session_state.personality_result = None
+            st.rerun()
+    
+    # やりたいことリスト結果の表示
+    if st.session_state.wishlist_result:
+        st.divider()
+        st.subheader("💕 やりたいことリスト")
+        st.markdown(st.session_state.wishlist_result)
+        
+        # LINE用プレビュー
+        st.subheader("📱 LINE用プレビュー")
+        st.info("以下のテキストはLINEでコピペしやすい形式です")
+        
+        # LINE用テキスト変換（同じロジック）
+        def convert_to_line_format_display(markdown_text):
+            import re
+            text = markdown_text
+            text = re.sub(r'^## (.+)$', r'✨\1✨', text, flags=re.MULTILINE)
+            text = re.sub(r'^### (.+)$', r'\1', text, flags=re.MULTILINE)
+            text = re.sub(r'- \[ \] ', r'◯ ', text)
+            text = re.sub(r'- \[x\] ', r'✅ ', text)
+            text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+            text = re.sub(r'\n\n\n+', r'\n\n', text)
+            return text.strip()
+        
+        line_text_display = convert_to_line_format_display(st.session_state.wishlist_result)
+        st.text(line_text_display)
+        
+        # ダウンロードボタン（簡単版）
+        col_dl1, col_dl2, col_dl3 = st.columns(3)
+        
+        with col_dl1:
+            # LINE用テキストダウンロード
+            line_data = "\ufeff" + line_text_display
             st.download_button(
-                label="💕 Wishlist (ASCII)",
-                data=download_bytes,
-                file_name=(
-                    f"{partner_nickname}_couple_wishlist_"
-                    f"{datetime.now().strftime('%Y%m%d')}.txt"
-                ),
-                mime="text/plain; charset=utf-8",
-                use_container_width=True,
+                label="📱 LINE用DL",
+                data=line_data.encode("utf-8"),
+                file_name=f"{partner_nickname}_LINE用_{datetime.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain; charset=utf-8"
             )
+        
+        with col_dl2:
+            # Markdown形式ダウンロード  
+            markdown_data = "\ufeff" + st.session_state.wishlist_result
+            st.download_button(
+                label="📄 Markdown DL",
+                data=markdown_data.encode("utf-8"),
+                file_name=f"{partner_nickname}_やりたいこと_{datetime.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain; charset=utf-8"
+            )
+            
+        with col_dl3:
+            # クリアボタン
+            if st.button("🗑️ リストをクリア", key="clear_wishlist"):
+                st.session_state.wishlist_result = None
+                st.session_state.wishlist_line_text = None
+                st.rerun()
 
 
 if __name__ == "__main__":
