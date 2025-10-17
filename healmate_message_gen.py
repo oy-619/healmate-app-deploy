@@ -1,23 +1,21 @@
-import requests
-from bs4 import BeautifulSoup
-from llama_index.core import download_loader
-from llama_index.core import GPTVectorStoreIndex
-from llama_index.core import StorageContext, load_index_from_storage
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain_community.document_loaders import WebBaseLoader
-from langchain.vectorstores import Chroma
-from langchain.chains import RetrievalQA
-from langchain.chat_models import ChatOpenAI
 import os
-from langchain.schema import Document
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.schema import HumanMessage
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
 import shutil
+
+import requests
 import streamlit as st
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from langchain.chains import (RetrievalQA, create_history_aware_retriever,
+                              create_retrieval_chain)
+from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chat_models import ChatOpenAI
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.schema import Document, HumanMessage
+from langchain.vectorstores import Chroma
+from langchain_community.document_loaders import WebBaseLoader
+from llama_index.core import (GPTVectorStoreIndex, StorageContext,
+                              download_loader, load_index_from_storage)
 
 load_dotenv()
 
@@ -128,7 +126,7 @@ if st.button("実行"):
     )
 
     # 呼び出すLLMのインスタンスを用意。
-    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.5)
+    llm = ChatOpenAI(model="gpt-4o-mini")
 
     # 呼び出すLLMと、ベクターストア検索のためのRetriever、
     # また独立した入力生成用のプロンプトを渡すことで
