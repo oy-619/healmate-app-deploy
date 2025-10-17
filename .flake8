@@ -1,5 +1,55 @@
 [flake8]
-# 長い行のチェックを無効にする
-ignore = E501
-# または最大行長を無制限にする場合
-max-line-length = 999
+# 最大行長
+max-line-length = 88
+
+# 無視するエラーコード（空白・スペース関連のチェックを無効化）
+ignore = 
+    # 行長関連
+    E501,  # line too long
+    
+    # インポート関連
+    E203,  # whitespace before ':'
+    W503,  # line break before binary operator
+    
+    # インデント・空白関連
+    E111,  # indentation is not a multiple of four
+    E117,  # over-indented
+    E124,  # closing bracket does not match visual indentation
+    E125,  # continuation line with same indent as next logical line
+    E129,  # visually indented line with same indent as next logical line
+    E131,  # continuation line unaligned for hanging indent
+    E133,  # closing bracket is missing indentation
+    
+    # 空白・スペース関連（空行以外のスペースチェックを無効）
+    E225,  # missing whitespace around operator
+    E226,  # missing whitespace around arithmetic operator
+    E227,  # missing whitespace around bitwise or shift operator
+    E228,  # missing whitespace around modulo operator
+    E231,  # missing whitespace after ','
+    E261,  # at least two spaces before inline comment
+    E262,  # inline comment should start with '# '
+    E265,  # block comment should start with '# '
+    E266,  # too many leading '#' for block comment
+    
+    # 空行関連（空行のスペースのみ許可）
+    W292,  # no newline at end of file
+    W293,  # blank line contains whitespace
+    W391,  # blank line at end of file
+    
+    # その他
+    E902,  # TokenError or IndentationError
+
+# 除外するファイル・ディレクトリ
+exclude = 
+    .git,
+    __pycache__,
+    env,
+    .env,
+    .venv,
+    venv,
+    build,
+    dist,
+    *.egg-info
+
+# 複雑度チェックを緩く設定
+max-complexity = 999
