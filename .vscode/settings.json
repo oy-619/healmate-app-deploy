@@ -1,10 +1,23 @@
 {
-    "python.defaultInterpreterPath": "./env/Scripts/python.exe",
+    "python.defaultInterpreterPath": "./env_new/Scripts/python.exe",
     "python.terminal.activateEnvironment": true,
     "python.terminal.activateEnvInCurrentTerminal": true,
     "python.analysis.autoImportCompletions": true,
     "python.analysis.typeCheckingMode": "off",
     "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.include": [
+        "src/**/*.py",
+        "tests/**/*.py",
+        "*.py"
+    ],
+    "python.analysis.exclude": [
+        "**/__pycache__/**",
+        "**/node_modules/**",
+        "**/.*/**",
+        "env/**",
+        "data/**",
+        "docs/**"
+    ],
     "python.analysis.diagnosticSeverityOverrides": {
         "reportSyntaxError": "error",
         "reportIndentationError": "error",
@@ -28,18 +41,28 @@
     ],
     "files.encoding": "utf8",
     "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 1000,
     "files.trimTrailingWhitespace": false,
     "files.trimFinalNewlines": true,
     "files.insertFinalNewline": true,
+    "files.watcherExclude": {
+        "**/__pycache__/**": true,
+        "**/env/**": true,
+        "**/.env/**": true
+    },
     "editor.formatOnSave": true,
     "editor.formatOnSaveMode": "file",
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit",
+        "source.fixAll": "explicit"
+    },
     "[python]": {
         "editor.formatOnSave": true,
         "editor.trimAutoWhitespace": false,
         "files.trimTrailingWhitespace": false,
         "editor.codeActionsOnSave": {
             "source.organizeImports": "explicit",
-            "source.fixAll": "explicit"
+            "source.fixAll.flake8": "explicit"
         },
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
@@ -49,10 +72,13 @@
     "editor.showError": true,
     "editor.showWarning": true,
     "black-formatter.args": [
-        "--line-length=88",
-        "--skip-string-normalization",
-        "--preserve-blank-lines"
+        "--config=./pyproject.toml"
     ],
+    "black-formatter.path": [
+        "./env_new/Scripts/black.exe"
+    ],
+    "black-formatter.importStrategy": "fromEnvironment",
+    "black-formatter.showNotifications": "onError",
     "editor.rulers": [
         88
     ],
@@ -62,16 +88,60 @@
     "editor.acceptSuggestionOnCommitCharacter": false,
     "python.linting.enabled": true,
     "python.linting.lintOnSave": true,
+    "python.linting.lintOnChange": true,
     "python.linting.flake8Enabled": true,
     "python.linting.pylintEnabled": false,
     "python.linting.pycodestyleEnabled": false,
     "python.linting.banditEnabled": false,
     "python.linting.mypyEnabled": false,
-    "flake8.args": [
-        "--config=.flake8"
+    "python.linting.pydocstyleEnabled": true,
+    "python.linting.pydocstylePath": "./env_new/Scripts/pydocstyle.exe",
+    "python.linting.ignorePatterns": [
+        ".vscode/*.py",
+        "**/.*",
+        "**/LICENSE*",
+        "**/__pycache__",
+        "**/node_modules/**/*",
+        "env/**/*",
+        "data/**/*",
+        "docs/**/*"
     ],
+    "flake8.args": [
+        "--config=./config/.flake8"
+    ],
+    "flake8.path": [
+        "./env_new/Scripts/flake8.exe"
+    ],
+    "flake8.importStrategy": "fromEnvironment",
+    "flake8.showNotifications": "onError",
+    "isort.args": [
+        "--settings-path=./pyproject.toml"
+    ],
+    "isort.path": [
+        "./env_new/Scripts/isort.exe"
+    ],
+    "isort.importStrategy": "fromEnvironment",
     "streamlit.serverPort": 8501,
     "terminal.integrated.defaultProfile.windows": "PowerShell",
     "git.enableSmartCommit": true,
-    "git.confirmSync": false
+    "git.confirmSync": false,
+    "files.enableTrash": true,
+    "files.defaultLanguage": "plaintext",
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/env": true,
+        "**/.env": true,
+        "data/.db": true,
+        "data/.db_metadata.json": true
+    },
+    "python.analysis.autoSearchPaths": false,
+    "python.analysis.extraPaths": [
+        "./src",
+        "./"
+    ],
+    "files.associations": {
+        "src/**/*.py": "python",
+        "tests/**/*.py": "python",
+        "*.py": "python"
+    }
 }

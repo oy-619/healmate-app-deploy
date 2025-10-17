@@ -1,0 +1,25 @@
+[flake8]
+# 最大行長
+max-line-length = 88
+
+# 無視するエラーコード（Blackと競合するもの＋複雑度警告）
+ignore = E203,W503,E501,E111,E117,W293,W391,C901
+
+# 検査対象ディレクトリとファイル
+include = src/**/*.py,tests/**/*.py,*.py
+
+# 除外するファイル・ディレクトリ
+exclude = .git,__pycache__,env,.env,.venv,venv,build,dist,*.egg-info,.vscode,.pytest_cache,data,docs,config
+
+# 検査対象ファイルパターン
+filename = *.py
+
+# 複雑度チェック（無効化）
+max-complexity = 999
+
+# 並列処理でのチェック（パフォーマンス向上）
+jobs = auto
+
+# 統計情報の表示
+statistics = True
+count = True

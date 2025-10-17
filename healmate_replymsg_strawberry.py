@@ -1,23 +1,23 @@
 import os
 import time
 from datetime import datetime
+
+import openai
+import streamlit as st
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-import streamlit as st
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.schema import Document, HumanMessage
+from langchain_community.vectorstores import Chroma
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-import openai
-from langchain_community.vectorstores import Chroma
-
-from langchain.schema import Document, HumanMessage
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
 
 load_dotenv()
 
@@ -25,11 +25,11 @@ load_dotenv()
 # 変数定義
 # ------------------------------------------------------
 save_dir = r"C:\work\ws_python\Healmate-app\healmate-app-deploy/.db"
+metadata_file = r"C:\work\ws_python\Healmate-app\healmate-app-deploy/.db_metadata.json"
 partner_nickname = None
 
+
 # OpenAI APIキーの確認と設定
-
-
 def check_openai_api_key():
     """OpenAI APIキーの有効性を確認する"""
     api_key = os.getenv("OPENAI_API_KEY")
@@ -333,15 +333,15 @@ def get_recent_conversation_context():
         elif child.name == "div" and current_date:
             time_tag = child.select_one("div.talkTime")
             msg_tag_self = child.select_one("div.talkBalloonColor1")  # 男性のメッセージ
-            msg_tag_partner = child.select_one("div.talkBalloonColor2")  # 🍓さんのメッセージ
+            msg_tag_partner = child.select_one(
+                "div.talkBalloonColor2"
+            )  # 🍓さんのメッセージ
             msg_time = time_tag.get_text(strip=True) if time_tag else ""
 
             # 男性のメッセージ
             if msg_tag_self:
                 msg = msg_tag_self.get_text(strip=True)
-                all_recent_messages.append(
-                    (current_date, msg_time, "男性", msg)
-                )
+                all_recent_messages.append((current_date, msg_time, "男性", msg))
 
             # 🍓さんのメッセージ
             if msg_tag_partner:
@@ -372,14 +372,14 @@ def get_recent_conversation_context():
         if latest_partner_msg and latest_self_msg:
             break
 
-    print(f"🍓{partner_nickname}さんの最新メッセージ:", latest_partner_msg)
-    print(f"男性の最新メッセージ:, {latest_self_msg}")
+    # print(f"🍓{partner_nickname}さんの最新メッセージ:", latest_partner_msg)
+    # print(f"男性の最新メッセージ:, {latest_self_msg}")
 
     return {
         'partner_nickname': partner_nickname,
         'latest_partner_msg': latest_partner_msg,
         'latest_self_msg': latest_self_msg,
-        'recent_context': recent_context
+        'recent_context': recent_context,
     }
 
 
@@ -447,10 +447,10 @@ def get_new_messages():
 
     # 最新メッセージの確認
     if partner_messages_sorted:
-        print(f"🍓{partner_nickname}さんの最新メッセージ:", partner_messages_sorted[0])
+        # print(f"🍓{partner_nickname}さんの最新メッセージ:", partner_messages_sorted[0])
         latest_partner_msg = partner_messages_sorted[0]
     else:
-        print(f"🍓{partner_nickname}さんのメッセージが見つかりませんでした")
+        # print(f"🍓{partner_nickname}さんのメッセージが見つかりませんでした")
         latest_partner_msg = None
 
     return (
@@ -469,9 +469,9 @@ def format_message(msg):
 
 def safe_delete_db():
     """ChromaDBディレクトリを安全に削除する関数（Windowsファイルロック対応）"""
+    import gc
     import shutil
     import time
-    import gc
 
     if not os.path.exists(save_dir):
         return True
@@ -586,10 +586,98 @@ def show_manual_deletion_guide():
         )
 
 
-def safe_init_chromadb(force_recreate=False):
-    """ChromaDBを安全に初期化する関数"""
-    import warnings
+def load_db_metadata():
+    """データベースのメタデータを読み込み"""
+    import json
+
+    if os.path.exists(metadata_file):
+        try:
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            return {"message_count": 0, "last_update": None}
+    return {"message_count": 0, "last_update": None}
+
+
+def save_db_metadata(message_count, last_update=None):
+    """データベースのメタデータを保存"""
+    import json
+
+    if last_update is None:
+        last_update = datetime.now().isoformat()
+
+    metadata = {"message_count": message_count, "last_update": last_update}
+
+    try:
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.warning(f"メタデータの保存に失敗しました: {str(e)}")
+
+
+def get_message_ids_from_docs(docs):
+    """Documentリストからメッセージ識別子のセットを作成"""
+    ids = set()
+    for doc in docs:
+        # メッセージの内容とメタデータから一意IDを生成
+        content = doc.page_content
+        metadata = doc.metadata
+        msg_id = f"{metadata.get('date', '')}_{metadata.get('time', '')}_{content[:50]}"
+        ids.add(msg_id)
+    return ids
+
+
+def get_new_messages_only(current_docs, existing_db=None):
+    """新しいメッセージのみを抽出する差分関数"""
+    if existing_db is None:
+        return current_docs
+
+    try:
+        # 既存DBからすべてのドキュメントを取得
+        existing_docs = existing_db.get()
+        if not existing_docs or not existing_docs.get('documents'):
+            return current_docs
+
+        # 既存メッセージのIDセットを作成
+        existing_ids = set()
+        existing_contents = existing_docs.get('documents', [])
+        existing_metadatas = existing_docs.get('metadatas', [])
+
+        for i, content in enumerate(existing_contents):
+            metadata = existing_metadatas[i] if i < len(existing_metadatas) else {}
+            msg_id = (
+                f"{metadata.get('date', '')}_{metadata.get('time', '')}_{content[:50]}"
+            )
+            existing_ids.add(msg_id)
+
+        # 新しいメッセージのみを抽出
+        new_docs = []
+        current_ids = get_message_ids_from_docs(current_docs)
+
+        for doc in current_docs:
+            content = doc.page_content
+            metadata = doc.metadata
+            msg_id = (
+                f"{metadata.get('date', '')}_{metadata.get('time', '')}_{content[:50]}"
+            )
+
+            if msg_id not in existing_ids:
+                new_docs.append(doc)
+
+        return new_docs
+
+    except Exception as e:
+        st.warning(f"差分抽出でエラー: {str(e)}。全データを使用します。")
+        return current_docs
+
+
+def safe_init_chromadb(force_recreate=False, data_type="partner_only"):
+    """
+    ChromaDBを効率的に初期化・更新する関数
+    data_type: "partner_only", "full_conversation", "all_messages"
+    """
     import gc
+    import warnings
 
     # LangChain の非推奨警告を抑制
     warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -597,80 +685,131 @@ def safe_init_chromadb(force_recreate=False):
     if force_recreate:
         st.info("🔄 データベースを強制的に再作成しています...")
 
-    # 強制再作成が指定された場合、または既存DBでエラーが発生した場合
+    # 強制再作成が指定された場合
     if force_recreate and os.path.exists(save_dir):
         if not safe_delete_db():
             return None
+        # メタデータファイルも削除
+        if os.path.exists(metadata_file):
+            try:
+                os.remove(metadata_file)
+            except Exception:
+                pass
 
     try:
+        # データベースが存在しない場合（初回作成）
         if not is_db():
-            # DBがなければ初回のみ作成
-            st.info("データベースを初期化中...")
-            with st.spinner("メッセージ履歴を取得中..."):
-                documents = get_all_messages()
+            st.info("📊 初回データベースを作成中...")
+            with st.spinner("全メッセージ履歴を取得中..."):
+                # 初回は全会話履歴を取得してデータベースを作成
+                if data_type == "full_conversation":
+                    documents = get_full_conversation_history()
+                elif data_type == "all_messages":
+                    documents = get_all_messages()
+                else:  # partner_only
+                    documents = get_all_messages()
+
                 if not documents:
                     st.warning("メッセージが取得できませんでした。")
                     return None
 
+                # 初回DB作成
                 db = Chroma.from_documents(
                     documents, embedding=embeddings, persist_directory=save_dir
                 )
                 db.persist()
-            st.success("データベースを作成しました")
+
+                # メタデータ保存
+                save_db_metadata(len(documents))
+
+            st.success(
+                f"✅ 初回データベースを作成しました（{len(documents)}件のメッセージ）"
+            )
             return db
+
         else:
             # 既存DBを読み込み
             db = Chroma(persist_directory=save_dir, embedding_function=embeddings)
 
-            # データベースの簡単な動作確認
+            # 動作確認
             try:
-                # 小さなテストクエリでDBの動作を確認
                 test_retriever = db.as_retriever(search_kwargs={"k": 1})
                 test_retriever.invoke("テスト")
+
+                # メタデータ確認
+                metadata = load_db_metadata()
+                st.info(
+                    f"💾 既存データベースを読み込みました（前回: {metadata['message_count']}件）"
+                )
+
                 return db
+
             except Exception as test_error:
                 st.warning(f"既存データベースに問題があります: {str(test_error)}")
-                # ChromaDBのインスタンスを明示的に削除
                 del db
                 gc.collect()
-                # 再帰的に再作成を試みる
-                return safe_init_chromadb(force_recreate=True)
+                return safe_init_chromadb(force_recreate=True, data_type=data_type)
 
     except Exception as db_error:
         st.error(f"データベースエラー: {str(db_error)}")
 
-        # まだ再作成を試していない場合は試す
         if not force_recreate:
             st.info("データベースを再作成しています...")
-            return safe_init_chromadb(force_recreate=True)
+            return safe_init_chromadb(force_recreate=True, data_type=data_type)
         else:
             st.error("⚠️ データベース初期化に失敗しました")
-            st.error("⚠️ データベース初期化に失敗しました")
-
-            with st.expander("🔧 手動解決方法", expanded=True):
-                st.markdown(
-                    """
-                **以下の手順を順番に実行してください:**
-
-                1. **サイドバーの「データベースをリセット」ボタンを試す**
-
-                2. **それでも解決しない場合:**
-                   - ブラウザのこのタブを閉じる
-                   - ターミナルで `Ctrl+C` を押してアプリを完全停止
-                   - 以下のフォルダを手動削除:
-                """
-                )
-                st.code(save_dir, language="text")
-                st.markdown(
-                    """
-                   - `streamlit run healmate_replymsg_strawberry.py` で再起動
-
-                3. **Windowsでファイルが削除できない場合:**
-                   - タスクマネージャーでPythonプロセスをすべて終了
-                   - PCを再起動してから手順2を実行
-                """
-                )
+            show_manual_deletion_guide()
             return None
+
+
+def update_chromadb_with_diff(db, data_type="partner_only"):
+    """既存のChromaDBに差分データのみを追加する関数（常に差分確認を実行）"""
+    try:
+        # 現在のデータを取得（常に実行）
+        with st.spinner("新しいメッセージをチェック中..."):
+            if data_type == "full_conversation":
+                current_docs = get_full_conversation_history()
+            elif data_type == "all_messages":
+                current_docs = get_all_messages()
+            else:  # partner_only
+                current_docs = get_all_messages()
+
+        if not current_docs:
+            st.warning("⚠️ 新しいメッセージが取得できませんでした。")
+            return db
+
+        # 差分を抽出（常に実行）
+        new_docs = get_new_messages_only(current_docs, db)
+
+        # 既存メッセージ数をカウント
+        try:
+            existing_count = len(db.get()['documents']) if db.get()['documents'] else 0
+        except:
+            existing_count = 0
+
+        if not new_docs:
+            st.info(
+                f"✅ 差分確認完了 - 新しいメッセージはありません（既存: {existing_count}件、最新: {len(current_docs)}件）"
+            )
+            return db
+
+        # 新しいメッセージをDBに追加
+        with st.spinner(f"新しいメッセージ {len(new_docs)}件をデータベースに追加中..."):
+            db.add_documents(new_docs)
+            db.persist()
+
+        # メタデータ更新
+        save_db_metadata(len(current_docs))
+
+        st.success(
+            f"✅ 差分更新完了 - {len(new_docs)}件の新しいメッセージを追加（総計: {len(current_docs)}件）"
+        )
+
+        return db
+
+    except Exception as e:
+        st.error(f"❌ 差分更新でエラー: {str(e)}")
+        return db
 
 
 def main():
@@ -687,6 +826,40 @@ def main():
         st.session_state.wishlist_result = None
     if 'wishlist_line_text' not in st.session_state:
         st.session_state.wishlist_line_text = None
+
+    # ------------------------------------------------------
+    # 初回ChromaDB作成処理（画面初期表示時のみ）
+    # ------------------------------------------------------
+
+    # ChromaDBが存在しない場合のみ初回作成を実行
+    # 各ボタン処理では既存DBの読み込み＋差分更新のみ実行
+    if not is_db():
+        st.info("🔄 初回セットアップを実行中...")
+        st.markdown(
+            """
+        **初回セットアップについて:**
+        - ChromaDBが存在しないため、全会話履歴を取得してデータベースを作成します
+        - この処理は初回のみ実行され、以降は差分更新のみ行われます
+        """
+        )
+
+        with st.spinner("ChromaDBを初回作成中（全メッセージ履歴をスクロール取得）..."):
+            try:
+                # 全会話履歴で初回DB作成（スクロール処理で全データを取得）
+                initial_db = safe_init_chromadb(
+                    force_recreate=True, data_type="full_conversation"
+                )
+                if initial_db:
+                    st.success("✅ ChromaDBの初回作成が完了しました")
+                    st.info("🔄 ページが自動的にリロードされます...")
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    st.error("❌ ChromaDBの初回作成に失敗しました")
+                    st.stop()
+            except Exception as init_error:
+                st.error(f"初回セットアップでエラー: {str(init_error)}")
+                st.stop()
 
     # ------------------------------------------------------
     # メッセージ情報取得処理
@@ -729,6 +902,16 @@ def main():
                     # 既存のDBを削除
                     delete_success = safe_delete_db()
 
+                    # メタデータファイルも削除
+                    if os.path.exists(metadata_file):
+                        try:
+                            os.remove(metadata_file)
+                            st.success("✅ メタデータファイルを削除しました")
+                        except Exception as meta_error:
+                            st.warning(
+                                f"メタデータファイルの削除に失敗: {str(meta_error)}"
+                            )
+
                     if delete_success:
                         st.success("✅ 既存データベースを削除しました")
 
@@ -737,8 +920,10 @@ def main():
 
                         time.sleep(1)
 
-                        # 新しいDBを作成
-                        new_db = safe_init_chromadb(force_recreate=True)
+                        # 新しいDBを作成（全会話履歴で初期化）
+                        new_db = safe_init_chromadb(
+                            force_recreate=True, data_type="full_conversation"
+                        )
                         if new_db:
                             st.success("✅ 新しいデータベースを作成しました")
                             st.info("🔄 ページをリロードしてください（F5キー）")
@@ -808,15 +993,17 @@ def main():
             st.error("メッセージを生成するには、今日の出来事や思いを入力してください。")
         else:
             with st.spinner("💬 メッセージを生成中..."):
-                # 全会話履歴を取得（メッセージ生成には全履歴が必要）
-                all_conversation_docs = get_full_conversation_history()
-
-                if not all_conversation_docs:
-                    st.error("会話履歴が見つかりませんでした。")
+                # 既存DBを読み込み（初回作成は画面初期化時に完了済み）
+                try:
+                    db = Chroma(
+                        persist_directory=save_dir, embedding_function=embeddings
+                    )
+                    # 差分更新を実行（常に最新メッセージをチェックして追加）
+                    db = update_chromadb_with_diff(db, data_type="full_conversation")
+                except Exception as db_error:
+                    st.error(f"データベースの読み込みに失敗しました: {str(db_error)}")
+                    st.error("サイドバーの「データベースをリセット」をお試しください。")
                     st.stop()
-
-                db = Chroma.from_documents(all_conversation_docs, embedding=embeddings)
-                db.persist()
                 retriever = db.as_retriever()
 
                 # 手順1〜3の処理を実現するにあたり、LLMへのリクエストは以下の2回行われる。
@@ -841,7 +1028,7 @@ def main():
 
                 # 呼び出すLLMのインスタンスを用意。
                 llm = ChatOpenAI(model="gpt-4o-mini")
-                
+
                 # 呼び出すLLMと、ベクターストア検索のためのRetriever、
                 # また独立した入力生成用のプロンプトを渡すことで
                 # 「create_history_aware_retriever」のインスタンスを生成。
@@ -962,14 +1149,16 @@ def main():
 
                     """
 
-                ai_msg = rag_chain.invoke({"input": query, "chat_history": chat_history})
+                ai_msg = rag_chain.invoke(
+                    {"input": query, "chat_history": chat_history}
+                )
                 # セッション状態に結果を保存
                 st.session_state.message_result = ai_msg['answer']
                 chat_history.extend([HumanMessage(content=query), ai_msg["answer"]])
-                print(
-                    f"\n\n==================生成メッセージ=================="
-                    f"\n{ai_msg['answer']}\n\n"
-                )
+                # print(
+                #     f"\n\n==================生成メッセージ=================="
+                #     f"\n{ai_msg['answer']}\n\n"
+                # )
 
     # これまでのメッセージ履歴からわかる人間性を分析する処理
     elif analyze_personality:
@@ -978,41 +1167,21 @@ def main():
             f"🍓{partner_nickname}さんの全メッセージ履歴からわかる人間性を分析しました。"
         )
 
-        # 全メッセージ履歴を取得
-        with st.spinner("全メッセージ履歴を取得中..."):
-            all_documents = get_all_messages()
-
-        if not all_documents:
-            st.error("メッセージ履歴が見つかりませんでした。")
-            st.stop()
-
-        # 🍓さんのメッセージのみを抽出
-        partner_messages = [
-            doc for doc in all_documents if doc.metadata.get("role") == "partner"
-        ]
-
-        if not partner_messages:
-            st.error(f"🍓{partner_nickname}さんのメッセージが見つかりませんでした。")
-            st.stop()
-
-        st.info(
-            f"分析対象: 🍓{partner_nickname}さんのメッセージ {len(partner_messages)}件"
-        )
-
-        # ChromaDBを安全に初期化
-        db = safe_init_chromadb()
-
-        if db is None:
-            st.error("データベースの初期化に失敗しました。")
-            st.stop()
-
-        # 🍓さんの全メッセージをデータベースに追加
+        # 既存DBを読み込み（初回作成は画面初期化時に完了済み）
         try:
-            db.add_documents(partner_messages)
-            db.persist()
-        except Exception as add_error:
-            st.warning(f"メッセージの追加中にエラーが発生しました: {str(add_error)}")
-            # エラーが発生しても処理を続行
+            db = Chroma(persist_directory=save_dir, embedding_function=embeddings)
+            # 差分更新を実行（常に最新メッセージをチェックして追加）
+            db = update_chromadb_with_diff(db, data_type="partner_only")
+        except Exception as db_error:
+            st.error(f"データベースの読み込みに失敗しました: {str(db_error)}")
+            st.error("サイドバーの「データベースをリセット」をお試しください。")
+            st.stop()
+
+        # メタデータから件数取得
+        metadata = load_db_metadata()
+        st.info(
+            f"分析対象: 🍓{partner_nickname}さんのメッセージ {metadata['message_count']}件"
+        )
 
         # DBからRetrieverを作成（検索結果数を増やして全体的な分析を可能にする）
         retriever = db.as_retriever(search_kwargs={"k": 20})
@@ -1038,6 +1207,7 @@ def main():
         - ファッションや美容への関心
         - 運動やスポーツへの取り組み
 
+        
         ## 3. 💬 コミュニケーションスタイル
         - メッセージの特徴（長さ、頻度、絵文字使用など）
         - 感情表現の仕方（嬉しい時、困った時、怒った時など）
@@ -1089,40 +1259,31 @@ def main():
             f"🍓{partner_nickname}さんと二人の全会話履歴から、やりたいことリストを作成しました。"
         )
 
-        # 全メッセージ履歴を取得（🍓さんと男性両方）
-        with st.spinner("全会話履歴を取得中..."):
-            all_conversation = get_full_conversation_history()
-
-        if not all_conversation:
-            st.error("会話履歴が見つかりませんでした。")
-            st.stop()
-
-        st.info(f"分析対象: 全会話履歴 {len(all_conversation)}件のメッセージ")
-
-        # ChromaDBを安全に初期化
-        db = safe_init_chromadb()
-
-        if db is None:
-            st.error("データベースの初期化に失敗しました。")
-            st.stop()
-
-        # 全会話履歴をデータベースに追加
+        # 既存DBを読み込み（初回作成は画面初期化時に完了済み）
         try:
-            db.add_documents(all_conversation)
-            db.persist()
-        except Exception as add_error:
-            st.warning(f"会話履歴の追加中にエラーが発生しました: {str(add_error)}")
-            # エラーが発生しても処理を続行
+            db = Chroma(persist_directory=save_dir, embedding_function=embeddings)
+            # 差分更新を実行（常に最新メッセージをチェックして追加）
+            db = update_chromadb_with_diff(db, data_type="full_conversation")
+        except Exception as db_error:
+            st.error(f"データベースの読み込みに失敗しました: {str(db_error)}")
+            st.error("サイドバーの「データベースをリセット」をお試しください。")
+            st.stop()
+
+        # メタデータから件数取得
+        metadata = load_db_metadata()
+        st.info(f"分析対象: 全会話履歴 {metadata['message_count']}件のメッセージ")
 
         # DBからRetrieverを作成（より多くの関連会話を検索）
         retriever = db.as_retriever(search_kwargs={"k": 30})
 
         query = f"""
         あなたは優秀な恋愛コンサルタントです。
-        以下のメッセージ履歴から、{partner_nickname}さんと男性が**二人で一緒に**やりたいと思っていることや、
-        興味を示していることを抽出して、具体的な「二人のやりたいことリスト」を作成してください。
+        以下のメッセージ履歴から、{partner_nickname}さんと男性が**二人で一緒に**行きたいと思っていること、
+        やりたいと思っていること、興味を示していることを抽出して、具体的な「二人のやりたいことリスト」を作成してください。
+        二人のやりたいことリストは「男性が実際に送るLINEメッセージ本文」そのものです。
 
         # 抽出対象（二人で行う事項に限定）
+        - 目標が具体的に指定されているもの
         - 一緒に行きたい場所や旅行先
         - 二人で食べに行きたい料理やレストラン
         - カップルで体験したいアクティビティやデート
@@ -1135,33 +1296,13 @@ def main():
         - 将来二人で実現したい生活スタイル
 
         # 出力形式
-        ## 💕 {partner_nickname}さんと二人で叶えたいリスト
-
-        ### 🌍 一緒に行きたい場所・旅行
-        - [ ] 具体的なデートスポットや旅行先（根拠となるメッセージ内容も記載）
-
-        ### 🍽️ 二人で楽しみたいグルメ
-        - [ ] 一緒に行きたいレストランや食べたい料理（根拠となるメッセージ内容も記載）
-
-        ### 🎯 カップルで体験したいアクティビティ
-        - [ ] 二人で楽しめる趣味や活動（根拠となるメッセージ内容も記載）
-
-        ### 🎪 一緒に参加したいイベント・体験
-        - [ ] 二人で参加したいイベントや特別な体験（根拠となるメッセージ内容も記載）
-
-        ### � 二人の関係で実現したいこと
-        - [ ] 関係性の発展や共通の目標（根拠となるメッセージ内容も記載）
-
-        ### ✨ 将来二人で叶えたい夢
-        - [ ] 長期的な二人の目標や理想（根拠となるメッセージ内容も記載）
+        - チェックリスト形式
 
         # 注意事項
-        - **必ず二人で行う事項のみ**を抽出すること（個人的な目標は除外）
         - 推測ではなく、実際のメッセージ内容に基づいて抽出すること
         - デートやカップル活動として実現可能なアクションとして表現すること
         - チェックボックス形式で、実行可能なリストとして作成すること
-        - 各項目には根拠となるメッセージの引用や説明を含めること
-        - 「一緒に」「二人で」といった表現を意識すること
+        - 「一緒に」といった表現を意識すること
         - 情報が不足している場合は「メッセージからは二人での具体的な希望が確認できませんでした」と記載
         """
 
@@ -1238,7 +1379,7 @@ def main():
                 ),
                 mime="text/plain; charset=utf-8",
                 use_container_width=True,
-                help="LINEでコピペしやすい形式のテキストファイル"
+                help="LINEでコピペしやすい形式のテキストファイル",
             )
 
         with col_dl2:
@@ -1251,7 +1392,7 @@ def main():
                 ),
                 mime="text/plain; charset=utf-8",
                 use_container_width=True,
-                help="元のMarkdown形式のテキストファイル"
+                help="元のMarkdown形式のテキストファイル",
             )
 
     # ------------------------------------------------------
@@ -1293,6 +1434,7 @@ def main():
         # LINE用テキスト変換（同じロジック）
         def convert_to_line_format_display(markdown_text):
             import re
+
             text = markdown_text
             text = re.sub(r'^## (.+)$', r'✨\1✨', text, flags=re.MULTILINE)
             text = re.sub(r'^### (.+)$', r'\1', text, flags=re.MULTILINE)
@@ -1302,7 +1444,9 @@ def main():
             text = re.sub(r'\n\n\n+', r'\n\n', text)
             return text.strip()
 
-        line_text_display = convert_to_line_format_display(st.session_state.wishlist_result)
+        line_text_display = convert_to_line_format_display(
+            st.session_state.wishlist_result
+        )
         st.text(line_text_display)
 
         # ダウンロードボタン（簡単版）
@@ -1315,7 +1459,7 @@ def main():
                 label="📱 LINE用DL",
                 data=line_data.encode("utf-8"),
                 file_name=f"{partner_nickname}_LINE用_{datetime.now().strftime('%Y%m%d')}.txt",
-                mime="text/plain; charset=utf-8"
+                mime="text/plain; charset=utf-8",
             )
 
         with col_dl2:
@@ -1325,7 +1469,7 @@ def main():
                 label="📄 Markdown DL",
                 data=markdown_data.encode("utf-8"),
                 file_name=f"{partner_nickname}_やりたいこと_{datetime.now().strftime('%Y%m%d')}.txt",
-                mime="text/plain; charset=utf-8"
+                mime="text/plain; charset=utf-8",
             )
 
         with col_dl3:

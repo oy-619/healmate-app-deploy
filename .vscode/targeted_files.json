@@ -1,0 +1,10 @@
+{
+    "targetFiles": [
+        "healmate_message_gen.py",
+        "healmate_replymsg_strawberry.py"
+    ],
+    "applyFormattingTo": [
+        "healmate_message_gen.py",
+        "healmate_replymsg_strawberry.py"
+    ]
+}

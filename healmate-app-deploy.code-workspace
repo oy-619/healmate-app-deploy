@@ -5,13 +5,67 @@
         }
     ],
     "settings": {
-        "python.defaultInterpreterPath": "./env/Scripts/python.exe",
+        "python.defaultInterpreterPath": "./env_new/Scripts/python.exe",
         "python.terminal.activateEnvironment": true,
         "python.terminal.activateEnvInCurrentTerminal": true,
         "files.encoding": "utf8",
         "files.autoSave": "afterDelay",
         "editor.formatOnSave": true,
-        "python.formatting.provider": "black"
+        "editor.formatOnSaveMode": "file",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll": "explicit"
+        },
+        "python.formatting.provider": "none",
+        "python.linting.enabled": true,
+        "python.linting.flake8Enabled": true,
+        "python.linting.flake8Path": "./config/.flake8",
+        "python.linting.lintOnSave": true,
+        "python.analysis.diagnosticMode": "workspace",
+        "python.analysis.include": [
+            "src/**/*.py",
+            "tests/**/*.py",
+            "*.py"
+        ],
+        "python.analysis.exclude": [
+            "**/__pycache__/**",
+            "env/**",
+            "data/**",
+            "docs/**",
+            "config/**"
+        ],
+        "python.analysis.extraPaths": [
+            "./src",
+            "./"
+        ],
+        "[python]": {
+            "editor.defaultFormatter": "ms-python.black-formatter",
+            "editor.formatOnSave": true,
+            "editor.codeActionsOnSave": {
+                "source.organizeImports": "explicit",
+                "source.fixAll.flake8": "explicit"
+            }
+        },
+        "files.associations": {
+            "src/**/*.py": "python",
+            "tests/**/*.py": "python",
+            "*.py": "python"
+        },
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/env": true,
+            "**/.env": true,
+            "data/.db": true,
+            "data/.db_metadata.json": true
+        },
+        "python.linting.ignorePatterns": [
+            ".vscode/*.py",
+            "**/.*",
+            "**/__pycache__",
+            "env/**/*",
+            "data/**/*",
+            "docs/**/*"
+        ]
     },
     "extensions": {
         "recommendations": [

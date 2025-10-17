@@ -1,0 +1,236 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Format All Python Files (Black)",
+            "type": "shell",
+            "command": "./env_new/Scripts/black.exe",
+            "args": [
+                "src/",
+                "tests/",
+                "*.py",
+                "--line-length=88",
+                "--skip-string-normalization",
+                "--verbose"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Format Current File (Black)",
+            "type": "shell",
+            "command": "./env_new/Scripts/black.exe",
+            "args": [
+                "${file}",
+                "--line-length=88",
+                "--skip-string-normalization",
+                "--verbose"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Lint All Python Files (flake8)",
+            "type": "shell",
+            "command": "./env_new/Scripts/flake8.exe",
+            "args": [
+                "src/",
+                "tests/",
+                "*.py",
+                "--config=./config/.flake8"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                {
+                    "owner": "flake8",
+                    "fileLocation": [
+                        "relative",
+                        "${workspaceFolder}"
+                    ],
+                    "pattern": {
+                        "regexp": "^(.*):(\\d+):(\\d+):\\s+(\\w+)\\s+(\\w+)\\s+(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3,
+                        "severity": 4,
+                        "code": 5,
+                        "message": 6
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Lint Current File (flake8)",
+            "type": "shell",
+            "command": "./env_new/Scripts/flake8.exe",
+            "args": [
+                "${file}",
+                "--config=./config/.flake8"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                {
+                    "owner": "flake8",
+                    "fileLocation": [
+                        "relative",
+                        "${workspaceFolder}"
+                    ],
+                    "pattern": {
+                        "regexp": "^(.*):(\\d+):(\\d+):\\s+(\\w+)\\s+(\\w+)\\s+(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3,
+                        "severity": 4,
+                        "code": 5,
+                        "message": 6
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Run Streamlit (Main App)",
+            "type": "shell",
+            "command": "./env_new/Scripts/streamlit.exe",
+            "args": [
+                "run",
+                "src/healmate_replymsg_strawberry.py",
+                "--server.port=8501",
+                "--server.headless=false",
+                "--browser.gatherUsageStats=false"
+            ],
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "runOptions": {
+                "instanceLimit": 1
+            }
+        },
+        {
+            "label": "Run Streamlit (Message Gen)",
+            "type": "shell",
+            "command": "./env_new/Scripts/streamlit.exe",
+            "args": [
+                "run",
+                "src/healmate_message_gen.py",
+                "--server.port=8502",
+                "--server.headless=false",
+                "--browser.gatherUsageStats=false"
+            ],
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "runOptions": {
+                "instanceLimit": 1
+            }
+        },
+        {
+            "label": "Run Tests",
+            "type": "shell",
+            "command": "./env_new/Scripts/python.exe",
+            "args": [
+                "-m",
+                "pytest",
+                "tests/",
+                "-v"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Install Dependencies",
+            "type": "shell",
+            "command": "./env_new/Scripts/pip.exe",
+            "args": [
+                "install",
+                "-r",
+                "requirements.txt"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Format and Lint All",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Format All Python Files (Black)",
+                "Lint All Python Files (flake8)"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        }
+    ]
+}

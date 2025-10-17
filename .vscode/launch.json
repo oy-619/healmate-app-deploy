@@ -8,7 +8,7 @@
             "module": "streamlit",
             "args": [
                 "run",
-                "healmate_replymsg_strawberry.py",
+                "src/healmate_replymsg_strawberry.py",
                 "--server.port=8501",
                 "--server.headless=false",
                 "--browser.gatherUsageStats=false"
@@ -16,11 +16,11 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}",
+                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}",
                 "STREAMLIT_SERVER_PORT": "8501"
             },
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}/env/Scripts/python.exe"
+            "python": "${workspaceFolder}/env_new/Scripts/python.exe"
         },
         {
             "name": "Streamlit: healmate_message_gen",
@@ -29,7 +29,7 @@
             "module": "streamlit",
             "args": [
                 "run",
-                "healmate_message_gen.py",
+                "src/healmate_message_gen.py",
                 "--server.port=8502",
                 "--server.headless=false",
                 "--browser.gatherUsageStats=false"
@@ -37,11 +37,11 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}",
+                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}",
                 "STREAMLIT_SERVER_PORT": "8502"
             },
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}/env/Scripts/python.exe"
+            "python": "${workspaceFolder}/env_new/Scripts/python.exe"
         },
         {
             "name": "Python: Current File",
@@ -51,10 +51,10 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
             },
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}/env/Scripts/python.exe"
+            "python": "${workspaceFolder}/env_new/Scripts/python.exe"
         },
         {
             "name": "Python: Debug Current File",
@@ -65,10 +65,10 @@
             "justMyCode": false,
             "stopOnEntry": false,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
             },
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}/env/Scripts/python.exe"
+            "python": "${workspaceFolder}/env_new/Scripts/python.exe"
         }
     ]
 }
