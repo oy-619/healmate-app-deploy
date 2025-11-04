@@ -213,6 +213,62 @@
             "problemMatcher": []
         },
         {
+            "label": "🔧 Pre-Debug Setup",
+            "type": "shell",
+            "command": "./env_new/Scripts/python.exe",
+            "args": [
+                "-c",
+                "import sys; print('Python:', sys.executable); import streamlit; print('Streamlit:', streamlit.__version__)"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🧹 Clean Debug Environment",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-Command",
+                "Get-Process | Where-Object {$_.ProcessName -like '*streamlit*' -or $_.ProcessName -like '*python*'} | Stop-Process -Force -ErrorAction SilentlyContinue; Write-Host 'Debug environment cleaned' -ForegroundColor Green"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🚀 Quick Debug Start",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "🔧 Pre-Debug Setup",
+                "Format Current File (Black)",
+                "Lint Current File (flake8)"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        },
+        {
             "label": "Format and Lint All",
             "dependsOrder": "sequence",
             "dependsOn": [

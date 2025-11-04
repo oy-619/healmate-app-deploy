@@ -8,6 +8,9 @@ target-version = ['py311']
 # ダブルクォートの統一をスキップ
 skip-string-normalization = true
 
+# より柔軟な空白の取り扱いを許可
+skip-magic-trailing-comma = false
+
 # 除外ファイル・ディレクトリ
 extend-exclude = '''
 /(
@@ -44,7 +47,8 @@ skip = ["env", "env_new", "__pycache__", ".vscode", "data", "docs", "config", "b
 
 [tool.flake8]
 max-line-length = 88
-extend-ignore = ["E203", "W503", "E501"]
+# 空白関連の警告を追加で無視（空行以外のスペースを許容）
+extend-ignore = ["E203", "W503", "E501", "E111", "E114", "E115", "E116", "E117", "E121", "E122", "E123", "E124", "E125", "E126", "E127", "E128", "E129", "E131", "E133", "W291", "W292", "W293"]
 max-complexity = 10
 
 # [tool.pydocstyle]

@@ -2,7 +2,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Streamlit: healmate_replymsg_strawberry",
+            "name": "🔧 Debug Test (Simple)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/env_new/Scripts/python.exe",
+            "args": [
+                "-c",
+                "print('✅ Debug working!'); import streamlit; print('✅ Streamlit available'); print('🎯 Ready to debug')"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "🚀 Streamlit: Main App (healmate_replymsg_strawberry)",
             "type": "debugpy",
             "request": "launch",
             "module": "streamlit",
@@ -16,14 +28,15 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}",
-                "STREAMLIT_SERVER_PORT": "8501"
+                "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}",
+                "STREAMLIT_SERVER_PORT": "8501",
+                "STREAMLIT_BROWSER_GATHER_USAGE_STATS": "false"
             },
             "cwd": "${workspaceFolder}",
             "python": "${workspaceFolder}/env_new/Scripts/python.exe"
         },
         {
-            "name": "Streamlit: healmate_message_gen",
+            "name": "💬 Streamlit: Message Generator (healmate_message_gen)",
             "type": "debugpy",
             "request": "launch",
             "module": "streamlit",
@@ -37,17 +50,82 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}",
-                "STREAMLIT_SERVER_PORT": "8502"
+                "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}",
+                "STREAMLIT_SERVER_PORT": "8502",
+                "STREAMLIT_BROWSER_GATHER_USAGE_STATS": "false"
             },
             "cwd": "${workspaceFolder}",
             "python": "${workspaceFolder}/env_new/Scripts/python.exe"
         },
         {
-            "name": "Python: Current File",
+            "name": "🐍 Python: Current File (Simple)",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/env_new/Scripts/python.exe"
+        },
+        {
+            "name": "🔍 Python: Debug Current File (Advanced)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "showReturnValue": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/env_new/Scripts/python.exe"
+        },
+        {
+            "name": "🧪 Python: Run Tests (pytest)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/",
+                "-v",
+                "--tb=short"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/env_new/Scripts/python.exe"
+        },
+        {
+            "name": "🔬 Python: Debug Specific Test",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${file}",
+                "-v",
+                "-s"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/env_new/Scripts/python.exe"
+        },
+        {
+            "name": "⚡ Python: Main Function Only",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "src/healmate_replymsg_strawberry.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
@@ -57,18 +135,29 @@
             "python": "${workspaceFolder}/env_new/Scripts/python.exe"
         },
         {
-            "name": "Python: Debug Current File",
+            "name": "🌐 Attach to Running Streamlit Process",
             "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "stopOnEntry": false,
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
             },
-            "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}/env_new/Scripts/python.exe"
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "${workspaceFolder}"
+                }
+            ]
+        }
+    ],
+    "compounds": [
+        {
+            "name": "🚀🚀 Launch Both Streamlit Apps",
+            "configurations": [
+                "🚀 Streamlit: Main App (healmate_replymsg_strawberry)",
+                "💬 Streamlit: Message Generator (healmate_message_gen)"
+            ],
+            "stopAll": true
         }
     ]
 }

@@ -6,8 +6,14 @@
     ],
     "settings": {
         "python.defaultInterpreterPath": "./env_new/Scripts/python.exe",
+        "python.pythonPath": "./env_new/Scripts/python.exe",
         "python.terminal.activateEnvironment": true,
         "python.terminal.activateEnvInCurrentTerminal": true,
+        "python.terminal.executeInFileDir": true,
+        "terminal.integrated.cwd": "${workspaceFolder}",
+        "terminal.integrated.env.windows": {
+            "PYTHONPATH": "${workspaceFolder}/src"
+        },
         "files.encoding": "utf8",
         "files.autoSave": "afterDelay",
         "editor.formatOnSave": true,

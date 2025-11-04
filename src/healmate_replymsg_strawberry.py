@@ -4,6 +4,14 @@ from datetime import datetime
 
 import openai
 import streamlit as st
+
+# ページ設定（最初に実行する必要がある）
+st.set_page_config(
+    page_title="Healmate Message Generator",
+    page_icon="💬",
+    layout="wide",  # 画面を広く使用
+    initial_sidebar_state="expanded"
+)
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
@@ -470,8 +478,848 @@ def get_new_messages():
     )
 
 
+def get_custom_css():
+    """モダンで落ち着いたトーンのカスタムCSSスタイル"""
+    return """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    /* 暖かいブラウン系の全体設定 */
+    .stApp {
+        background: linear-gradient(180deg, #fdf6f0 0%, #faf0e6 100%);
+    }
+    
+    /* メイン表示領域を広げる */
+    .main .block-container {
+        max-width: none !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+    
+    /* Streamlitのデフォルト制限を解除 */
+    .stMainBlockContainer {
+        max-width: none !important;
+    }
+    
+    /* コンテンツエリアを最大限活用 */
+    .element-container {
+        width: 100% !important;
+    }
+    
+    .main-header {
+        background: linear-gradient(135deg, #b37b32 0%, #c8956d 25%, #d4a574 50%, #e0b87a 75%, #ecc881 100%);
+        padding: 3rem 2.5rem;
+        border-radius: 24px;
+        text-align: center;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 0 20px 40px rgba(179, 123, 50, 0.25), 0 8px 25px rgba(200, 149, 109, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(20px);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .main-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: modern-shimmer 6s ease-in-out infinite;
+        z-index: 0;
+    }
+    
+    .main-header::after {
+        content: '✨ 洗練されたコミュニケーション';
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 16px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 2;
+    }
+    
+    @keyframes modern-shimmer {
+        0%, 100% { transform: rotate(0deg) scale(1); opacity: 0.3; }
+        50% { transform: rotate(90deg) scale(1.05); opacity: 0.5; }
+    }
+    
+    .main-header h1 {
+        font-size: 2.4rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        position: relative;
+        z-index: 1;
+        letter-spacing: -0.8px;
+        line-height: 1.2;
+    }
+    
+    .main-header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.1rem;
+        margin: 1rem 0 0 0;
+        font-weight: 400;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 1px 10px rgba(0,0,0,0.1);
+        opacity: 0.95;
+    }
+    
+    .message-card {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 2rem;
+        border-radius: 16px;
+        border: 1px solid rgba(179, 123, 50, 0.2);
+        margin: 1rem 0;
+        box-shadow: 0 4px 25px rgba(179, 123, 50, 0.08);
+        backdrop-filter: blur(12px);
+        transition: all 0.3s ease;
+    }
+    
+    .message-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 35px rgba(179, 123, 50, 0.12);
+    }
+    
+    .partner-message {
+        background: linear-gradient(135deg, #c8956d 0%, #b37b32 100%);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 6px 30px rgba(200, 149, 109, 0.2);
+    }
+    
+    .self-message {
+        background: linear-gradient(135deg, #f5e6d3 0%, #e0b87a 100%);
+        color: #8b4513;
+        border: 1px solid rgba(200, 149, 109, 0.3);
+        box-shadow: 0 6px 30px rgba(200, 149, 109, 0.15);
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 246, 240, 0.95) 100%);
+        padding: 2rem 1.5rem;
+        border-radius: 16px;
+        border: 1px solid rgba(179, 123, 50, 0.15);
+        text-align: center;
+        box-shadow: 0 8px 30px rgba(179, 123, 50, 0.08), 0 2px 12px rgba(139, 69, 19, 0.06);
+        backdrop-filter: blur(16px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .stats-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #b37b32, #c8956d, #d4a574, #e0b87a);
+        border-radius: 16px 16px 0 0;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 40px rgba(200, 149, 109, 0.15), 0 6px 20px rgba(179, 123, 50, 0.1);
+    }
+    
+    .stats-card h3 {
+        font-size: 2.2rem;
+        margin-bottom: 0.5rem;
+        opacity: 0.8;
+    }
+    
+    .stats-card h2 {
+        color: #b37b32;
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin: 0.5rem 0;
+        text-shadow: 0 2px 10px rgba(179, 123, 50, 0.2);
+    }
+    
+    .stats-card p strong {
+        color: #8b4513;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .action-button {
+        background: linear-gradient(135deg, #c8956d 0%, #b37b32 100%);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        letter-spacing: 0.2px;
+        box-shadow: 0 8px 25px rgba(200, 149, 109, 0.25), 0 3px 12px rgba(179, 123, 50, 0.15);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        text-transform: none;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .action-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        transition: left 0.6s ease;
+    }
+    
+    .action-button:hover::before {
+        left: 100%;
+    }
+    
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 35px rgba(200, 149, 109, 0.3), 0 6px 20px rgba(179, 123, 50, 0.2);
+        background: linear-gradient(135deg, #b37b32 0%, #a0522d 100%);
+    }
+    
+    .action-button:active {
+        transform: translateY(0px);
+        box-shadow: 0 4px 15px rgba(200, 149, 109, 0.3);
+    }
+    
+    .result-container {
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(255, 182, 193, 0.3);
+        border-radius: 20px;
+        padding: 2.5rem;
+        margin: 2rem 0;
+        box-shadow: 0 8px 32px rgba(255, 107, 157, 0.1);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* ヒールメイト風のボタンスタイル */
+    .stButton > button {
+        background: linear-gradient(45deg, #ff6b9d, #ff8fab) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-radius: 25px !important;
+        font-weight: 600 !important;
+        padding: 0.75rem 2rem !important;
+        box-shadow: 0 4px 15px rgba(255, 107, 157, 0.3) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4) !important;
+    }
+    
+    /* テキストエリアのスタイル */
+    .stTextArea > div > div > textarea {
+        border: 2px solid rgba(255, 182, 193, 0.3) !important;
+        border-radius: 15px !important;
+        background: rgba(255, 255, 255, 0.9) !important;
+        backdrop-filter: blur(5px) !important;
+    }
+    
+    .stTextArea > div > div > textarea:focus {
+        border-color: #ff6b9d !important;
+        box-shadow: 0 0 0 2px rgba(255, 107, 157, 0.2) !important;
+    }
+    
+    /* セクションタイトル */
+    .section-title {
+        color: #b37b32;
+        font-weight: 700;
+        font-size: 1.5rem;
+        margin: 2rem 0 1rem 0;
+        text-align: center;
+    }
+    
+    /* 入力セクションの暖かいブラウンスタイル */
+    .input-section {
+        background: linear-gradient(135deg, #b37b32 0%, #8b4513 100%);
+        padding: 2.5rem;
+        border-radius: 16px;
+        margin: 2rem 0;
+        color: white;
+        box-shadow: 0 12px 35px rgba(179, 123, 50, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .input-section h3 {
+        text-align: center;
+        margin-bottom: 1rem;
+        font-size: 1.8rem;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        font-weight: 600;
+    }
+    
+    .input-section p {
+        text-align: center;
+        opacity: 0.9;
+        font-size: 1.1rem;
+        margin-bottom: 0;
+        font-weight: 400;
+    }
+    
+    /* アクションカードの薄い暖かいブラウンスタイル */
+    .action-card-message {
+        background: linear-gradient(135deg, #c8956d 0%, #b37b32 100%);
+        padding: 1.5rem;
+        border-radius: 16px;
+        margin-bottom: 1rem;
+        text-align: center;
+        box-shadow: 0 8px 30px rgba(200, 149, 109, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .action-card-analysis {
+        background: linear-gradient(135deg, #d4a574 0%, #e0b87a 100%);
+        padding: 1.5rem;
+        border-radius: 16px;
+        margin-bottom: 1rem;
+        text-align: center;
+        box-shadow: 0 8px 30px rgba(212, 165, 116, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .action-card-wishlist {
+        background: linear-gradient(135deg, #e0b87a 0%, #f5e6d3 100%);
+        padding: 1.5rem;
+        border-radius: 16px;
+        margin-bottom: 1rem;
+        text-align: center;
+        box-shadow: 0 8px 30px rgba(224, 184, 122, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* サイドバーの薄い暖かいブラウンスタイル */
+    .sidebar-header {
+        background: linear-gradient(135deg, #c8956d 0%, #d4a574 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 25px rgba(200, 149, 109, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .sidebar-status {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 1.2rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(200, 149, 109, 0.2);
+        box-shadow: 0 4px 15px rgba(200, 149, 109, 0.08);
+    }
+
+    /* サイドバーのボタンスタイル */
+    .stSidebar .stButton > button {
+        background: linear-gradient(135deg, #c8956d, #b37b32);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.8rem 1.2rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(200,149,109,0.2);
+        margin-bottom: 0.5rem;
+        width: 100%;
+    }
+
+    .stSidebar .stButton > button:hover {
+        background: linear-gradient(135deg, #b37b32, #a06328);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(179,123,50,0.3);
+    }
+
+    .stSidebar .stButton > button:active {
+        transform: translateY(0px);
+        box-shadow: 0 2px 10px rgba(179,123,50,0.4);
+    }
+    </style>
+    """
+
+
+def render_main_header(partner_nickname):
+    """メインヘッダーを表示する関数（Healmate公式デザイン風）"""
+    st.markdown(get_custom_css(), unsafe_allow_html=True)
+
+    # モダンなヘッダーバッジ
+    st.markdown(
+        """
+    <div style="text-align: center; margin-bottom: 1rem;">
+        <span style="background: linear-gradient(135deg, #c8956d, #d4a574); color: white; padding: 0.5rem 1.5rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600; box-shadow: 0 4px 15px rgba(200, 149, 109, 0.2);">
+            ✨ インテリジェントメッセージアシスタント
+        </span>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+    
+    st.markdown(
+        f"""
+    <div class="main-header">
+        <h1>� {partner_nickname}さんへの返信メッセージ生成</h1>
+        <p>AIが心のこもったメッセージ作成をサポートします</p>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+    
+    # モダンな利用案内
+    st.markdown(
+        """
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="background: rgba(255, 255, 255, 0.9); padding: 1rem 2rem; border-radius: 12px; display: inline-block; box-shadow: 0 4px 15px rgba(179, 123, 50, 0.08); border: 1px solid rgba(179, 123, 50, 0.15);">
+            <span style="color: #b37b32; font-weight: 600; font-size: 1rem;">🤖 スマートで効率的なコミュニケーション体験</span>
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+def render_stats_cards(latest_messages_sorted):
+    """統計カードを表示する関数（4列レイアウト）"""
+    stats_col1, stats_col2, stats_col3, stats_col4 = st.columns(4, gap="medium")
+
+    with stats_col1:
+        st.markdown(
+            """
+        <div class="stats-card">
+            <h3>📊</h3>
+            <p><strong>メッセージ数</strong></p>
+            <h2>{}</h2>
+        </div>
+        """.format(
+                len(latest_messages_sorted)
+            ),
+            unsafe_allow_html=True,
+        )
+
+    with stats_col2:
+        latest_time = latest_messages_sorted[-1][1] if latest_messages_sorted else "---"
+        st.markdown(
+            """
+        <div class="stats-card">
+            <h3>⏰</h3>
+            <p><strong>最新時刻</strong></p>
+            <h2>{}</h2>
+        </div>
+        """.format(
+                latest_time.replace("既読", "")
+            ),
+            unsafe_allow_html=True,
+        )
+
+    with stats_col3:
+        st.markdown(
+            """
+        <div class="stats-card">
+            <h3>💝</h3>
+            <p><strong>会話状況</strong></p>
+            <h2>進行中</h2>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+    
+    with stats_col4:
+        st.markdown(
+            """
+        <div class="stats-card">
+            <h3>⚡</h3>
+            <p><strong>効率性</strong></p>
+            <h2>HIGH</h2>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+
+def render_message_card(date, msg_time, sender, msg, title, card_class):
+    """個別のメッセージカードを表示する関数"""
+    msg_formatted = format_message(msg)
+    return f"""
+    <div class="message-card {card_class}">
+        <h4>{title}</h4>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+            <span><strong>📅 {date}</strong></span>
+            <span><strong>🕒 {msg_time}</strong></span>
+        </div>
+        <div style="margin-bottom: 0.5rem;"><strong>👤 {sender}</strong></div>
+        <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; white-space: pre-wrap;">{msg_formatted}</div>
+    </div>
+    """
+
+
+def render_input_section(partner_nickname):
+    """入力セクションを表示する関数（ヒールメイト風）"""
+    st.markdown(
+        """
+    <div class="input-section">
+        <h3>✍️ あなたの想いを入力してください</h3>
+        <p>今日の出来事や、{}さんからのメッセージへの思いをお聞かせください</p>
+    </div>
+    """.format(
+            partner_nickname
+        ),
+        unsafe_allow_html=True,
+    )
+
+    label_text = f"💭 今日の出来事や{partner_nickname}さんからの最新メッセージに対する思いを入力してください。"
+    return st.text_area(
+        label=label_text,
+        height=150,
+        placeholder="例：今日は仕事で大変だったけど、🍓さんのメッセージを見て元気が出ました...",
+        help="具体的な出来事や感情を書くと、より自然なメッセージが生成されます",
+    )
+
+
+def render_action_buttons():
+    """アクションボタンを表示する関数"""
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    button_col1, button_col2, button_col3 = st.columns([1, 1, 1], gap="medium")
+
+    with button_col1:
+        st.markdown(
+            """
+        <div class="action-card-message">
+            <h4 style="color: white; margin: 0; font-size: 1.3rem;">💬 メッセージ生成</h4>
+            <p style="color: white; margin: 0.5rem 0 0 0; font-size: 0.95em;">AIが心のこもったメッセージを作成</p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+        generate_message = st.button(
+            "💬 メッセージを生成する", use_container_width=True, type="primary"
+        )
+
+    with button_col2:
+        st.markdown(
+            """
+        <div class="action-card-analysis">
+            <h4 style="color: #444; margin: 0; font-size: 1.3rem;">🧠 人格分析</h4>
+            <p style="color: #666; margin: 0.5rem 0 0 0; font-size: 0.95em;">相手の性格や特徴を詳細分析</p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+        analyze_personality = st.button(
+            "🧠 人格分析を実行", use_container_width=True, type="secondary"
+        )
+
+    with button_col3:
+        st.markdown(
+            """
+        <div class="action-card-wishlist">
+            <h4 style="color: #444; margin: 0; font-size: 1.3rem;">💕 やりたいことリスト</h4>
+            <p style="color: #666; margin: 0.5rem 0 0 0; font-size: 0.95em;">二人の未来の計画を作成</p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+        create_wishlist = st.button(
+            "💕 リストを作成", use_container_width=True, type="secondary"
+        )
+
+    return generate_message, analyze_personality, create_wishlist
+
+
+def render_sidebar():
+    """サイドバーを表示する関数（ヒールメイト風）"""
+    with st.sidebar:
+        st.markdown(
+            """
+        <div class="sidebar-header">
+            <h2 style="color: white; margin: 0; font-size: 1.4rem;">⚙️ システム管理</h2>
+            <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0; font-size: 0.95rem;">データベース操作</p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # 現在の状態表示
+        st.markdown(
+            """
+        <div class="sidebar-status">
+            <h4 style="color: #ff6b9d; margin: 0 0 0.5rem 0; font-size: 1.1rem;">📊 システム状態</h4>
+            <p style="margin: 0; color: #28a745; font-weight: 600;"><strong>✅ 正常稼働中</strong></p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # システム管理ボタン
+        if st.button(
+            "🔄 データベースをリセット",
+            help="データベースエラーが発生した場合に使用",
+            use_container_width=True,
+        ):
+            with st.spinner("データベースをリセット中..."):
+                try:
+                    # 既存のDBを削除
+                    delete_success = safe_delete_db()
+
+                    # メタデータファイルも削除
+                    metadata_file = os.path.join(
+                        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "data",
+                        ".db_metadata.json",
+                    )
+                    if os.path.exists(metadata_file):
+                        try:
+                            os.remove(metadata_file)
+                            st.success("✅ メタデータファイルを削除しました")
+                        except Exception as meta_error:
+                            st.warning(
+                                f"メタデータファイルの削除に失敗: {str(meta_error)}"
+                            )
+
+                    if delete_success:
+                        st.success("✅ 既存データベースを削除しました")
+
+                        # 少し待ってから新しいDBを作成
+                        import time
+
+                        time.sleep(1)
+
+                        # 新しいDBを作成（全会話履歴で初期化）
+                        new_db = safe_init_chromadb(
+                            force_recreate=True, data_type="full_conversation"
+                        )
+                        if new_db:
+                            st.success("✅ 新しいデータベースを作成しました")
+                            st.info("🔄 ページをリロードしてください（F5キー）")
+                        else:
+                            st.error("❌ データベース作成に失敗しました")
+                    else:
+                        st.warning("⚠️ 自動削除に失敗しました。手動削除が必要です。")
+
+                except Exception as e:
+                    st.error(f"リセット中にエラーが発生しました: {str(e)}")
+                    show_manual_deletion_guide()
+
+        if st.button(
+            "🚨 緊急リセット",
+            help="強制的にデータベースをクリアして再起動",
+            use_container_width=True,
+        ):
+            st.error("⚠️ 緊急リセットモード")
+            show_manual_deletion_guide()
+
+        if st.button(
+            "🧹 アプリケーションを再起動",
+            help="完全にアプリケーションを再起動",
+            use_container_width=True,
+        ):
+            st.info("📋 再起動手順:")
+            st.markdown(
+                """
+            1. **ブラウザのこのタブを閉じる**
+            2. **ターミナルでCtrl+Cを押してアプリを停止**
+            3. **再度 `streamlit run` コマンドで起動**
+            """
+            )
+
+
+def render_message_result():
+    """メッセージ生成結果を表示する関数（ヒールメイト風）"""
+    if st.session_state.message_result:
+        st.markdown(
+            """
+        <div class="result-container">
+            <h2 style="color: #ff6b9d; text-align: center; margin-bottom: 2rem; font-size: 2rem;">
+                💬 生成されたメッセージ
+            </h2>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # メッセージを美しいカードで表示（ヒールメイト風）
+        st.markdown(
+            f"""
+        <div style="background: linear-gradient(135deg, #ff6b9d 0%, #ff8fab 100%); 
+                    color: white; padding: 2.5rem; border-radius: 20px; 
+                    box-shadow: 0 12px 40px rgba(255, 107, 157, 0.3); margin: 2rem 0;
+                    border: 1px solid rgba(255, 255, 255, 0.2);">
+            <div style="background: rgba(255,255,255,0.15); padding: 2rem; 
+                        border-radius: 15px; white-space: pre-wrap; 
+                        font-size: 1.15em; line-height: 1.7; 
+                        backdrop-filter: blur(5px);">{st.session_state.message_result}</div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # アクションボタン
+        action_col1, action_col2, action_col3 = st.columns(3)
+        with action_col1:
+            if st.button(
+                "📋 クリップボードにコピー",
+                key="copy_message",
+                use_container_width=True,
+            ):
+                st.success(
+                    "✅ メッセージがコピーされました（手動でコピーしてください）"
+                )
+        with action_col2:
+            st.download_button(
+                label="💾 テキストファイルで保存",
+                data=st.session_state.message_result,
+                file_name=f"generated_message_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+        with action_col3:
+            if st.button(
+                "🗑️ メッセージをクリア", key="clear_message", use_container_width=True
+            ):
+                st.session_state.message_result = None
+                st.rerun()
+
+
+def render_personality_result():
+    """人格分析結果を表示する関数"""
+    if st.session_state.personality_result:
+        st.markdown(
+            """
+        <div class="result-container">
+            <h2 style="color: #667eea; text-align: center; margin-bottom: 2rem;">
+                🧠 人格分析結果
+            </h2>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # 分析結果を美しく表示
+        # f-string内でバックスラッシュを避けるため、先に文字列処理を行う
+        formatted_result = st.session_state.personality_result.replace(
+            '##', '<h3 style="color: #ffd700;">'
+        )
+        formatted_result = formatted_result.replace('\n\n', '</h3>\n\n')
+
+        st.markdown(
+            f"""
+        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                    color: white; padding: 2rem; border-radius: 15px; 
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.1); margin: 1rem 0;">
+            <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; 
+                        border-radius: 10px;">
+                {formatted_result}
+            </div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # アクションボタン
+        action_col1, action_col2 = st.columns(2)
+        with action_col1:
+            st.download_button(
+                label="💾 分析結果を保存",
+                data=st.session_state.personality_result,
+                file_name=f"personality_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+        with action_col2:
+            if st.button(
+                "🗑️ 人格分析をクリア", key="clear_personality", use_container_width=True
+            ):
+                st.session_state.personality_result = None
+                st.rerun()
+
+
+def render_wishlist_result(partner_nickname):
+    """やりたいことリスト結果を表示する関数"""
+    if st.session_state.wishlist_result:
+        st.markdown(
+            """
+        <div class="result-container">
+            <h2 style="color: #f5576c; text-align: center; margin-bottom: 2rem;">
+                💕 やりたいことリスト
+            </h2>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+        st.markdown(st.session_state.wishlist_result)
+
+        # LINE用プレビュー
+        st.subheader("📱 LINE用プレビュー")
+        st.info("以下のテキストはLINEでコピペしやすい形式です")
+
+        # LINE用テキスト変換
+        def convert_to_line_format_display(markdown_text):
+            import re
+
+            text = markdown_text
+            text = re.sub(r'^## (.+)$', r'✨\1✨', text, flags=re.MULTILINE)
+            text = re.sub(r'^### (.+)$', r'\1', text, flags=re.MULTILINE)
+            text = re.sub(r'- \[ \] ', r'◯ ', text)
+            text = re.sub(r'- \[x\] ', r'✅ ', text)
+            text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+            text = re.sub(r'\n\n\n+', r'\n\n', text)
+            return text.strip()
+
+        line_text_display = convert_to_line_format_display(
+            st.session_state.wishlist_result
+        )
+        st.text(line_text_display)
+
+        # ダウンロードボタン
+        col_dl1, col_dl2, col_dl3 = st.columns(3)
+
+        with col_dl1:
+            line_data = "\ufeff" + line_text_display
+            st.download_button(
+                label="📱 LINE用DL",
+                data=line_data.encode("utf-8"),
+                file_name=f"{partner_nickname}_LINE用_{datetime.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain; charset=utf-8",
+            )
+
+        with col_dl2:
+            markdown_data = "\ufeff" + st.session_state.wishlist_result
+            st.download_button(
+                label="📄 Markdown DL",
+                data=markdown_data.encode("utf-8"),
+                file_name=f"{partner_nickname}_やりたいこと_{datetime.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain; charset=utf-8",
+            )
+
+        with col_dl3:
+            if st.button("🗑️ リストをクリア", key="clear_wishlist"):
+                st.session_state.wishlist_result = None
+                st.session_state.wishlist_line_text = None
+                st.rerun()
+
+
 def format_message(msg):
-    """メッセージをそのまま返す（元の改行を保持）"""
+    """メッセージの改行位置を維持して返す（WEBサイトの書式を保持）"""
+    # 先頭と末尾の余分な空白のみ削除、改行は保持
     return msg.strip()
 
 
@@ -855,102 +1703,77 @@ def main():
     # Streamlitアプリ
     # ------------------------------------------------------
 
-    # サイドバーにリセット機能を追加
-    with st.sidebar:
-        st.header("⚙️ システム管理")
+    # サイドバーの表示
+    render_sidebar()
 
-        if st.button(
-            "🔄 データベースをリセット", help="データベースエラーが発生した場合に使用"
-        ):
-            with st.spinner("データベースをリセット中..."):
-                try:
-                    # 既存のDBを削除
-                    delete_success = safe_delete_db()
+    # メインヘッダーの表示
+    render_main_header(partner_nickname)
 
-                    # メタデータファイルも削除
-                    if os.path.exists(metadata_file):
-                        try:
-                            os.remove(metadata_file)
-                            st.success("✅ メタデータファイルを削除しました")
-                        except Exception as meta_error:
-                            st.warning(
-                                f"メタデータファイルの削除に失敗: {str(meta_error)}"
-                            )
+    st.markdown("### 📱 最新メッセージ")
 
-                    if delete_success:
-                        st.success("✅ 既存データベースを削除しました")
+    # 最新メッセージを送信時間で昇順に表示
+    latest_messages = []
 
-                        # 少し待ってから新しいDBを作成
-                        import time
+    # パートナーの最新メッセージを追加
+    if partner_docs:
+        date, msg_time, role, msg = partner_docs
+        latest_messages.append((date, msg_time, f"🍓{partner_nickname}", msg))
 
-                        time.sleep(1)
+    # 男性の最新メッセージを追加
+    if self_docs:
+        date, msg_time, role, msg = self_docs
+        latest_messages.append((date, msg_time, "👤男性(あなた)", msg))
 
-                        # 新しいDBを作成（全会話履歴で初期化）
-                        new_db = safe_init_chromadb(
-                            force_recreate=True, data_type="full_conversation"
-                        )
-                        if new_db:
-                            st.success("✅ 新しいデータベースを作成しました")
-                            st.info("🔄 ページをリロードしてください（F5キー）")
-                        else:
-                            st.error("❌ データベース作成に失敗しました")
-                    else:
-                        st.warning("⚠️ 自動削除に失敗しました。手動削除が必要です。")
+    # 送信時間で昇順ソート（古い順）
+    latest_messages_sorted = sorted(
+        latest_messages, key=lambda x: parse_datetime(x[0], x[1]), reverse=False
+    )
 
-                except Exception as e:
-                    st.error(f"リセット中にエラーが発生しました: {str(e)}")
-                    show_manual_deletion_guide()
+    # 統計情報の表示
+    render_stats_cards(latest_messages_sorted)
 
-        if st.button("🚨 緊急リセット", help="強制的にデータベースをクリアして再起動"):
-            st.error("⚠️ 緊急リセットモード")
-            show_manual_deletion_guide()
+    # 最新メッセージを横並びで表示（リッチなカードスタイル）
+    if len(latest_messages_sorted) == 1:
+        date, msg_time, sender, msg = latest_messages_sorted[0]
+        card_class = "partner-message" if "🍓" in sender else "self-message"
+        st.markdown(
+            render_message_card(
+                date, msg_time, sender, msg, "🆕 最新メッセージ", card_class
+            ),
+            unsafe_allow_html=True,
+        )
 
-        if st.button(
-            "🧹 アプリケーションを再起動", help="完全にアプリケーションを再起動"
-        ):
-            st.info("📋 再起動手順:")
+    elif len(latest_messages_sorted) == 2:
+        col1, col2 = st.columns([1, 1], gap="medium")  # 均等な幅で少し狭いギャップ
+        for i, (date, msg_time, sender, msg) in enumerate(latest_messages_sorted):
+            title = (
+                "🆕 最新メッセージ"
+                if i == len(latest_messages_sorted) - 1
+                else "📝 前のメッセージ"
+            )
+            card_class = "partner-message" if "🍓" in sender else "self-message"
+
+            with col1 if i == 0 else col2:
+                st.markdown(
+                    render_message_card(date, msg_time, sender, msg, title, card_class),
+                    unsafe_allow_html=True,
+                )
+    else:
+        for i, (date, msg_time, sender, msg) in enumerate(latest_messages_sorted):
+            title = (
+                "🆕 最新メッセージ"
+                if i == len(latest_messages_sorted) - 1
+                else f"📝 メッセージ {i+1}"
+            )
+            card_class = "partner-message" if "🍓" in sender else "self-message"
             st.markdown(
-                """
-            1. **ブラウザのこのタブを閉じる**
-            2. **ターミナルでCtrl+Cを押してアプリを停止**
-            3. **再度 `streamlit run` コマンドで起動**
-            """
+                render_message_card(date, msg_time, sender, msg, title, card_class),
+                unsafe_allow_html=True,
             )
 
-    st.title(f"{partner_nickname}さんへの返信メッセージ自動生成アプリ")
-    st.divider()
-    st.subheader("最新メッセージ")
-
-    # partner_docsは (date, msg_time, role, msg)
-    date, msg_time, role, msg = partner_docs
-    msg_formatted = format_message(msg)
-
-    # Streamlitで見やすく表示
-    st.markdown(
-        f"""
-    **日付**: {date}
-    **時間**: {msg_time}
-    **送信者**: {role}
-    **メッセージ**:
-    {msg_formatted}
-    """
-    )
-    st.divider()
-
-    label_text = f"今日の出来事や{partner_nickname}さんからの最新メッセージに対する思いを入力してください。"
-    today_txt = st.text_area(label=label_text)
-
-    # ボタンを横並びで配置
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        generate_message = st.button("💬 メッセージ生成", use_container_width=True)
-
-    with col2:
-        analyze_personality = st.button("🧠 人格分析", use_container_width=True)
-
-    with col3:
-        create_wishlist = st.button("� やりたいことリスト", use_container_width=True)
+    # 入力セクションとアクションボタンの表示
+    today_txt = render_input_section(partner_nickname)
+    generate_message, analyze_personality, create_wishlist = render_action_buttons()
 
     if generate_message:
         # ユーザー入力のチェック
@@ -1361,27 +2184,114 @@ def main():
     # 保存された結果の表示（常に表示）
     # ------------------------------------------------------
 
-    # メッセージ生成結果の表示
-    if st.session_state.message_result:
-        st.divider()
-        st.subheader("💬 生成されたメッセージ")
-        st.write(st.session_state.message_result)
+    # 結果表示関数を使用
+    render_message_result()
+    render_personality_result()
+    render_wishlist_result(partner_nickname)
 
-        # クリアボタン
-        if st.button("🗑️ メッセージをクリア", key="clear_message"):
-            st.session_state.message_result = None
-            st.rerun()
+    # 以下は削除予定のコード（関数化済み）
+    if False and st.session_state.message_result:
+        st.markdown(
+            """
+        <div class="result-container">
+            <h2 style="color: #ff6b6b; text-align: center; margin-bottom: 2rem;">
+                💬 生成されたメッセージ
+            </h2>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # メッセージを美しいカードで表示
+        st.markdown(
+            f"""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    color: white; padding: 2rem; border-radius: 15px; 
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.1); margin: 1rem 0;">
+            <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; 
+                        border-radius: 10px; white-space: pre-wrap; 
+                        font-size: 1.1em; line-height: 1.6;">{st.session_state.message_result}</div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # アクションボタン
+        action_col1, action_col2, action_col3 = st.columns(3)
+        with action_col1:
+            if st.button(
+                "📋 クリップボードにコピー",
+                key="copy_message",
+                use_container_width=True,
+            ):
+                st.success(
+                    "✅ メッセージがコピーされました（手動でコピーしてください）"
+                )
+        with action_col2:
+            st.download_button(
+                label="💾 テキストファイルで保存",
+                data=st.session_state.message_result,
+                file_name=f"generated_message_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+        with action_col3:
+            if st.button(
+                "🗑️ メッセージをクリア", key="clear_message", use_container_width=True
+            ):
+                st.session_state.message_result = None
+                st.rerun()
 
     # 人格分析結果の表示
     if st.session_state.personality_result:
-        st.divider()
-        st.subheader("🧠 人格分析結果")
-        st.markdown(st.session_state.personality_result)
+        st.markdown(
+            """
+        <div class="result-container">
+            <h2 style="color: #667eea; text-align: center; margin-bottom: 2rem;">
+                🧠 人格分析結果
+            </h2>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
 
-        # クリアボタン
-        if st.button("🗑️ 人格分析をクリア", key="clear_personality"):
-            st.session_state.personality_result = None
-            st.rerun()
+        # 分析結果を美しく表示
+        # f-string内でバックスラッシュを避けるため、先に文字列処理を行う
+        formatted_result = st.session_state.personality_result.replace(
+            '##', '<h3 style="color: #ffd700;">'
+        )
+        formatted_result = formatted_result.replace('\n\n', '</h3>\n\n')
+
+        st.markdown(
+            f"""
+        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                    color: white; padding: 2rem; border-radius: 15px; 
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.1); margin: 1rem 0;">
+            <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; 
+                        border-radius: 10px;">
+                {formatted_result}
+            </div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # アクションボタン
+        action_col1, action_col2 = st.columns(2)
+        with action_col1:
+            st.download_button(
+                label="💾 分析結果を保存",
+                data=st.session_state.personality_result,
+                file_name=f"personality_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+        with action_col2:
+            if st.button(
+                "🗑️ 人格分析をクリア", key="clear_personality", use_container_width=True
+            ):
+                st.session_state.personality_result = None
+                st.rerun()
 
     # やりたいことリスト結果の表示
     if st.session_state.wishlist_result:

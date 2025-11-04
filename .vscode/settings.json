@@ -1,7 +1,10 @@
 {
     "python.defaultInterpreterPath": "./env_new/Scripts/python.exe",
+    "python.pythonPath": "./env_new/Scripts/python.exe",
     "python.terminal.activateEnvironment": true,
     "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.terminal.executeInFileDir": true,
+    "python.envFile": "${workspaceFolder}/.env",
     "python.analysis.autoImportCompletions": true,
     "python.analysis.typeCheckingMode": "off",
     "python.analysis.diagnosticMode": "workspace",
@@ -123,6 +126,21 @@
     "isort.importStrategy": "fromEnvironment",
     "streamlit.serverPort": 8501,
     "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    "terminal.integrated.env.windows": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "VIRTUAL_ENV": "${workspaceFolder}/env_new"
+    },
+    "terminal.integrated.profiles.windows": {
+        "Healmate PowerShell": {
+            "source": "PowerShell",
+            "args": [
+                "-NoExit",
+                "-Command",
+                "if (Test-Path '.\\env_new\\Scripts\\Activate.ps1') { & '.\\env_new\\Scripts\\Activate.ps1' }"
+            ]
+        }
+    },
     "git.enableSmartCommit": true,
     "git.confirmSync": false,
     "files.enableTrash": true,
