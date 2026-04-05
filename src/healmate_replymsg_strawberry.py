@@ -31,7 +31,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-# .envファイルのパスを指定
+# .envファイルのパスを指定（ローカル用）
 env_path = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", ".env"
 )
@@ -51,14 +51,32 @@ partner_nickname = None
 
 
 def check_openai_api_key():
-    """OpenAI APIキーの有効性を確認する"""
-    api_key = os.getenv("OPENAI_API_KEY")
+    """OpenAI APIキーの有効性を確認する（ローカル・Streamlit Cloud両対応）"""
+    api_key = None
+
+    # 1. Streamlit Secrets（クラウド用）を最優先でチェック
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+        print("✅ Streamlit secrets からAPIキーを取得")
+    except (KeyError, AttributeError, FileNotFoundError):
+        # 2. 環境変数をチェック（.envファイル読み込み済み）
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            print("✅ 環境変数(.env)からAPIキーを取得")
+
     if not api_key:
-        st.error(
-            "❌ OPENAI_API_KEYが設定されていません。.envファイルを確認してください。"
+        st.error("❌ OPENAI_API_KEYが設定されていません。")
+        st.info(
+            "💡 **ローカル環境の場合:** config/.envファイルに以下の形式で設定してください："
         )
-        st.info("💡 .envファイルに以下の形式で設定してください：")
         st.code("OPENAI_API_KEY=sk-proj-...", language="text")
+        st.info(
+            "💡 **Streamlit Cloud の場合:** アプリの Settings → Secrets で以下を設定してください："
+        )
+        st.code('OPENAI_API_KEY = "sk-proj-..."', language="toml")
+        st.warning(
+            "🔗 [Streamlit Secrets 設定ガイド](https://docs.streamlit.io/streamlit-community-cloud/deploy-your-app/secrets-management)"
+        )
         st.stop()
 
     if not api_key.startswith(("sk-", "sk-proj-")):

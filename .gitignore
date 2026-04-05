@@ -198,6 +198,35 @@ cython_debug/
 .pypirc
 
 # Cursor
+
+# ================================
+# Healmate App specific ignores
+# ================================
+
+# Streamlit secrets and configuration
+.streamlit/secrets.toml
+.streamlit/config.toml
+
+# Environment and configuration files  
+config/.env
+.env*
+
+# Database and data files
+data/.db/
+data/.db_metadata.json
+*.db
+*.sqlite
+*.sqlite3
+
+# Chrome driver and browser data
+chromedriver*
+browser_data/
+
+# Temporary files  
+temp/
+tmp/
+debug_api_key.py
+test_openai_connection.py
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
 #  refer to https://docs.cursor.com/context/ignore-files
