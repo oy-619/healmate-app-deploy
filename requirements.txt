@@ -17,7 +17,7 @@ cachetools==5.5.2
 certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.7
-chroma-hnswlib==0.7.6
+chroma-hnswlib==0.7.3
 chromadb==0.5.3
 chromedriver-autoinstaller==0.6.4
 click==8.3.2
