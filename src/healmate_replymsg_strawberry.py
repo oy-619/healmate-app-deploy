@@ -14,11 +14,15 @@ st.set_page_config(
 )
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+
+# Langchain imports - fully restored for langchain 0.2.x compatibility
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.schema import Document, HumanMessage
+from langchain.chains.history_aware_retriever import create_history_aware_retriever
+from langchain.chains.retrieval import create_retrieval_chain
 from langchain_community.vectorstores import Chroma
+from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
