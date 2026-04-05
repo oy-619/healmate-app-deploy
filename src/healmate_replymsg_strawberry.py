@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Healmate Message Generator",
     page_icon="💬",
     layout="wide",  # 画面を広く使用
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -164,7 +164,7 @@ def get_all_messages():
     #     if name_elements:
     #         partner_nickname = name_elements.get_text(strip=True)
 
-    # HTMLリストから🍓さんのメッセージのみを抽出
+    # HTMLリストからお相手さんのメッセージのみを抽出
     partner_messages = []
     for html in html_list:
         soup = BeautifulSoup(html, "html.parser")
@@ -180,7 +180,7 @@ def get_all_messages():
                 msg_tag_partner = child.select_one("div.talkBalloonColor2")
                 msg_time = time_tag.get_text(strip=True) if time_tag else ""
 
-                # 🍓さんのメッセージのみを収集
+                # お相手さんのメッセージのみを収集
                 if msg_tag_partner:
                     msg = msg_tag_partner.get_text(strip=True)
                     partner_messages.append((current_date, msg_time, msg))
@@ -189,7 +189,7 @@ def get_all_messages():
     unique_msgs = {(d[0], d[1], d[2]): d for d in partner_messages}
     partner_messages = list(unique_msgs.values())
 
-    # 🍓さんのメッセージのみでDocumentを作成
+    # お相手さんのメッセージのみでDocumentを作成
     docs = [
         Document(
             page_content=f"{date} {msg_time} {msg}",
@@ -208,7 +208,7 @@ def get_all_messages():
 
 
 def get_full_conversation_history():
-    """🍓さんと男性の全会話履歴を取得する関数"""
+    """お相手さんと男性の全会話履歴を取得する関数"""
     # Chromeをヘッドレス（画面非表示）で起動
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
@@ -253,7 +253,7 @@ def get_full_conversation_history():
         if name_elements:
             partner_nickname = name_elements.get_text(strip=True)
 
-    # 全会話履歴を抽出（🍓さんと男性両方）
+    # 全会話履歴を抽出（お相手さんと男性両方）
     all_messages = []
     for html in html_list:
         soup = BeautifulSoup(html, "html.parser")
@@ -342,7 +342,7 @@ def get_recent_conversation_context():
     all_recent_messages = []
     current_date = None
 
-    # 直近のメッセージを両方（男性・🍓さん）収集
+    # 直近のメッセージを両方（男性・お相手さん）収集
     for child in container.children:
         if child.name == "p" and "talkDate" in child.get("class", []):
             current_date = child.get_text(strip=True)
@@ -351,7 +351,7 @@ def get_recent_conversation_context():
             msg_tag_self = child.select_one("div.talkBalloonColor1")  # 男性のメッセージ
             msg_tag_partner = child.select_one(
                 "div.talkBalloonColor2"
-            )  # 🍓さんのメッセージ
+            )  # お相手さんのメッセージ
             msg_time = time_tag.get_text(strip=True) if time_tag else ""
 
             # 男性のメッセージ
@@ -359,7 +359,7 @@ def get_recent_conversation_context():
                 msg = msg_tag_self.get_text(strip=True)
                 all_recent_messages.append((current_date, msg_time, "男性", msg))
 
-            # 🍓さんのメッセージ
+            # お相手さんのメッセージ
             if msg_tag_partner:
                 msg = msg_tag_partner.get_text(strip=True)
                 all_recent_messages.append(
@@ -417,7 +417,7 @@ def get_new_messages():
     driver.find_element("tag name", "form").submit()
 
     # パートナーとのメッセージページにアクセス
-    driver.get("https://my.healmate.jp/talk?code=o5wphl0zfx6rt41#bottom")
+    driver.get("https://my.healmate.jp/talk?code=K4sydc2rm0srd3k#bottom")
 
     # 最新情報のみを取得するため、ページ最下部までスクロール
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -431,7 +431,7 @@ def get_new_messages():
     # ブラウザを閉じる
     driver.quit()
 
-    # HTMLをパースして🍓さんの最新メッセージのみを抽出
+    # HTMLをパースして最新のメッセージのみを抽出
     soup = BeautifulSoup(html, "html.parser")
     name_elements = soup.select_one("div.hover")
     partner_nickname = name_elements.get_text(strip=True)
@@ -440,7 +440,7 @@ def get_new_messages():
     partner_messages = []
     current_date = None
 
-    # 🍓さんのメッセージのみを収集
+    # お相手さんのメッセージのみを収集
     for child in container.children:
         if child.name == "p" and "talkDate" in child.get("class", []):
             current_date = child.get_text(strip=True)
@@ -449,14 +449,14 @@ def get_new_messages():
             msg_tag_partner = child.select_one("div.talkBalloonColor2")
             msg_time = time_tag.get_text(strip=True) if time_tag else ""
 
-            # 🍓さんのメッセージのみ収集
+            # お相手さんのメッセージのみ収集
             if msg_tag_partner:
                 msg = msg_tag_partner.get_text(strip=True)
                 partner_messages.append(
                     (current_date, msg_time, f"【{partner_nickname}】", msg)
                 )
 
-    # 🍓さんのメッセージを日付と時間でソート（最新順）
+    # お相手さんのメッセージを日付と時間でソート（最新順）
     partner_messages_sorted = sorted(
         partner_messages, key=lambda x: parse_datetime(x[0], x[1]), reverse=True
     )
@@ -471,7 +471,7 @@ def get_new_messages():
 
     return (
         None,  # self_docs（不要）
-        latest_partner_msg,  # 🍓さんの最新メッセージのみ
+        latest_partner_msg,  # お相手さんの最新メッセージのみ
         [],  # documents_sorted（不要）
         [],  # docs（不要）
         partner_nickname,
@@ -873,7 +873,7 @@ def render_main_header(partner_nickname):
     """,
         unsafe_allow_html=True,
     )
-    
+
     st.markdown(
         f"""
     <div class="main-header">
@@ -883,7 +883,7 @@ def render_main_header(partner_nickname):
     """,
         unsafe_allow_html=True,
     )
-    
+
     # モダンな利用案内
     st.markdown(
         """
@@ -895,6 +895,8 @@ def render_main_header(partner_nickname):
     """,
         unsafe_allow_html=True,
     )
+
+
 def render_stats_cards(latest_messages_sorted):
     """統計カードを表示する関数（4列レイアウト）"""
     stats_col1, stats_col2, stats_col3, stats_col4 = st.columns(4, gap="medium")
@@ -939,7 +941,7 @@ def render_stats_cards(latest_messages_sorted):
         """,
             unsafe_allow_html=True,
         )
-    
+
     with stats_col4:
         st.markdown(
             """
@@ -989,7 +991,7 @@ def render_input_section(partner_nickname):
     return st.text_area(
         label=label_text,
         height=150,
-        placeholder="例：今日は仕事で大変だったけど、🍓さんのメッセージを見て元気が出ました...",
+        placeholder="例：今日は仕事で大変だったけど、お相手さんのメッセージを見て元気が出ました...",
         help="具体的な出来事や感情を書くと、より自然なメッセージが生成されます",
     )
 
